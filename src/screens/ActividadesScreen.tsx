@@ -1,14 +1,18 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { listarActividades, eliminarActividad } from '../db/actividadesRepo';
 import { ActividadRecurrente } from '../types';
-import { colors } from '../utils/theme';
+import { Paleta } from '../utils/theme';
+import { useTheme } from '../context/ThemeContext';
 import ActividadFormModal from '../components/ActividadFormModal';
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 export default function ActividadesScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => crearEstilos(colors), [colors]);
+
   const [actividades, setActividades] = useState<ActividadRecurrente[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editando, setEditando] = useState<ActividadRecurrente | null>(null);
@@ -93,32 +97,34 @@ export default function ActividadesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  contenedor: { flex: 1, backgroundColor: colors.fondo },
-  vacio: { color: colors.textoSecundario, textAlign: 'center', marginTop: 40, paddingHorizontal: 20 },
-  tarjeta: {
-    backgroundColor: colors.tarjeta,
-    borderLeftWidth: 4,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  tituloTarjeta: { fontWeight: '700', fontSize: 15, color: colors.texto },
-  subtitulo: { color: colors.textoSecundario, marginTop: 2 },
-  eliminar: { color: colors.peligro, fontWeight: '600', marginLeft: 8 },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primario,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-  },
-  fabTexto: { color: '#fff', fontSize: 28, lineHeight: 30 },
-});
+function crearEstilos(colors: Paleta) {
+  return StyleSheet.create({
+    contenedor: { flex: 1, backgroundColor: colors.fondo },
+    vacio: { color: colors.textoSecundario, textAlign: 'center', marginTop: 40, paddingHorizontal: 20 },
+    tarjeta: {
+      backgroundColor: colors.tarjeta,
+      borderLeftWidth: 4,
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    tituloTarjeta: { fontWeight: '700', fontSize: 15, color: colors.texto },
+    subtitulo: { color: colors.textoSecundario, marginTop: 2 },
+    eliminar: { color: colors.peligro, fontWeight: '600', marginLeft: 8 },
+    fab: {
+      position: 'absolute',
+      right: 20,
+      bottom: 20,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primario,
+      alignItems: 'center',
+      justifyContent: 'center',
+      elevation: 4,
+    },
+    fabTexto: { color: '#fff', fontSize: 28, lineHeight: 30 },
+  });
+}

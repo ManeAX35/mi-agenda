@@ -19,11 +19,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": [
-        "SCHEDULE_EXACT_ALARM",
-        "POST_NOTIFICATIONS",
-        "RECEIVE_BOOT_COMPLETED"
-      ],
+      "permissions": ["SCHEDULE_EXACT_ALARM", "POST_NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED"],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -45,10 +41,12 @@
               "name": "AgendaWidget",
               "label": "Agenda de hoy",
               "description": "Muestra tus actividades y pendientes de hoy",
-              "minWidth": "250dp",
-              "minHeight": "180dp",
-              "targetCellWidth": 4,
-              "targetCellHeight": 3,
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "maxResizeWidth": "320dp",
+              "maxResizeHeight": "320dp",
               "resizeMode": "horizontal|vertical",
               "updatePeriodMillis": 1800000
             },
@@ -56,21 +54,18 @@
               "name": "TareasWidget",
               "label": "Tareas de hoy",
               "description": "Marca tus tareas del día directo desde el widget",
-              "minWidth": "250dp",
-              "minHeight": "180dp",
-              "targetCellWidth": 4,
-              "targetCellHeight": 3,
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "maxResizeWidth": "320dp",
+              "maxResizeHeight": "320dp",
               "resizeMode": "horizontal|vertical",
               "updatePeriodMillis": 1800000
             }
           ]
         }
       ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "ad2734ac-8481-46b3-8305-3fbc729de72a"
-      }
-    }
+    ]
   }
 }

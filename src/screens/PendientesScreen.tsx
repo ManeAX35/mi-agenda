@@ -1,12 +1,16 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Switch } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { listarPendientes, marcarCompletado, eliminarPendiente } from '../db/pendientesRepo';
 import { Pendiente } from '../types';
-import { colors } from '../utils/theme';
+import { Paleta } from '../utils/theme';
+import { useTheme } from '../context/ThemeContext';
 import PendienteFormModal from '../components/PendienteFormModal';
 
 export default function PendientesScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => crearEstilos(colors), [colors]);
+
   const [pendientes, setPendientes] = useState<Pendiente[]>([]);
   const [mostrarCompletados, setMostrarCompletados] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -80,7 +84,7 @@ export default function PendientesScreen() {
                 <Text style={styles.subtitulo}>
                   {fechaObj.toLocaleDateString('es-MX')} {fechaObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} · {item.tipo}
                   {vencido ? ' · VENCIDO' : ''}
-                  {!!item.recordatorios_activados && ' · 🔔'}
+                  {item.repetir ? ` · 🔁 ${item.repetir}` : ''}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => confirmarEliminar(item)}>
@@ -108,20 +112,22 @@ export default function PendientesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  contenedor: { flex: 1, backgroundColor: colors.fondo },
-  filtroFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12 },
-  filtroTexto: { color: colors.texto, fontWeight: '600' },
-  vacio: { color: colors.textoSecundario, textAlign: 'center', marginTop: 40, paddingHorizontal: 20 },
-  tarjeta: { backgroundColor: colors.tarjeta, borderRadius: 10, padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
-  tarjetaVencida: { borderColor: colors.peligro, borderWidth: 1 },
-  checkbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.primario, alignItems: 'center', justifyContent: 'center' },
-  checkboxMarcado: { backgroundColor: colors.exito, borderColor: colors.exito },
-  checkboxTexto: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  tituloTarjeta: { fontWeight: '700', fontSize: 15, color: colors.texto },
-  tachado: { textDecorationLine: 'line-through', color: colors.textoSecundario },
-  subtitulo: { color: colors.textoSecundario, marginTop: 2 },
-  eliminar: { color: colors.peligro, fontWeight: '600', marginLeft: 8 },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primario, alignItems: 'center', justifyContent: 'center', elevation: 4 },
-  fabTexto: { color: '#fff', fontSize: 28, lineHeight: 30 },
-});
+function crearEstilos(colors: Paleta) {
+  return StyleSheet.create({
+    contenedor: { flex: 1, backgroundColor: colors.fondo },
+    filtroFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12 },
+    filtroTexto: { color: colors.texto, fontWeight: '600' },
+    vacio: { color: colors.textoSecundario, textAlign: 'center', marginTop: 40, paddingHorizontal: 20 },
+    tarjeta: { backgroundColor: colors.tarjeta, borderRadius: 10, padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
+    tarjetaVencida: { borderColor: colors.peligro, borderWidth: 1 },
+    checkbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.primario, alignItems: 'center', justifyContent: 'center' },
+    checkboxMarcado: { backgroundColor: colors.exito, borderColor: colors.exito },
+    checkboxTexto: { color: '#fff', fontWeight: '700', fontSize: 12 },
+    tituloTarjeta: { fontWeight: '700', fontSize: 15, color: colors.texto },
+    tachado: { textDecorationLine: 'line-through', color: colors.textoSecundario },
+    subtitulo: { color: colors.textoSecundario, marginTop: 2 },
+    eliminar: { color: colors.peligro, fontWeight: '600', marginLeft: 8 },
+    fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primario, alignItems: 'center', justifyContent: 'center', elevation: 4 },
+    fabTexto: { color: '#fff', fontSize: 28, lineHeight: 30 },
+  });
+}

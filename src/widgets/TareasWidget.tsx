@@ -32,7 +32,8 @@ export function TareasWidget({ tareas }: Props) {
         <TextWidget text="Tareas de hoy" style={{ fontSize: 14, fontWeight: 'bold', color: '#111827' }} />
         <FlexWidget
           style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: '#4F46E5', alignItems: 'center', justifyContent: 'center' }}
-          clickAction="OPEN_APP"
+          clickAction="OPEN_URI"
+          clickActionData={{ uri: 'miagenda://diario' }}
         >
           <TextWidget text="+" style={{ fontSize: 16, color: '#FFFFFF', fontWeight: 'bold' }} />
         </FlexWidget>

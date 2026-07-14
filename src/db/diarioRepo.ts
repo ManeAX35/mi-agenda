@@ -1,5 +1,6 @@
 import { getDb } from './database';
 import { EntradaDiario } from '../types';
+import { fechaLocalDesdeDate } from '../utils/tiempo';
 
 export async function obtenerEntrada(fecha: string): Promise<EntradaDiario | null> {
   const db = await getDb();
@@ -23,6 +24,42 @@ export async function listarEntradasRecientes(limite = 30): Promise<EntradaDiari
     'SELECT * FROM diario ORDER BY fecha DESC LIMIT ?;',
     [limite]
   );
+}
+
+/** Fechas (como set de strings "YYYY-MM-DD") que tienen algo escrito en el diario. */
+export async function listarFechasConDiarioEscrito(limite = 120): Promise<string[]> {
+  const db = await getDb();
+  const filas = await db.getAllAsync<{ fecha: string }>(
+    "SELECT fecha FROM diario WHERE TRIM(contenido) != '' ORDER BY fecha DESC LIMIT ?;",
+    [limite]
+  );
+  return filas.map((f) => f.fecha);
+}
+
+/**
+ * Cuenta los días consecutivos más recientes con algo escrito en el diario (racha).
+ * Si hoy todavía no escribes nada, no rompe la racha (se cuenta desde ayer) — se
+ * "rompe" hasta que pase un día completo sin escribir.
+ */
+export async function calcularRachaDiario(): Promise<number> {
+  const db = await getDb();
+  const filas = await db.getAllAsync<{ fecha: string }>(
+    "SELECT fecha FROM diario WHERE TRIM(contenido) != '' ORDER BY fecha DESC;"
+  );
+  const fechasConTexto = new Set(filas.map((f) => f.fecha));
+
+  const cursor = new Date();
+  const hoyStr = fechaLocalDesdeDate(cursor);
+  if (!fechasConTexto.has(hoyStr)) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  let racha = 0;
+  while (fechasConTexto.has(fechaLocalDesdeDate(cursor))) {
+    racha++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return racha;
 }
 
 /**

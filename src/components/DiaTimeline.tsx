@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { colors } from '../utils/theme';
+import { Paleta } from '../utils/theme';
+import { useTheme } from '../context/ThemeContext';
 import { minutosDesdeMedianoche } from '../utils/tiempo';
 
 const HORA_INICIO = 0;
@@ -66,7 +67,6 @@ function calcularLayout(eventos: EventoDia[]): EventoPosicionado[] {
       cerrarCluster();
     }
 
-    // Busca la primera columna libre (cuyo último evento ya terminó antes de que empiece este)
     let columna = columnasOcupadasHasta.findIndex((finCol) => finCol <= inicioMin);
     if (columna === -1) {
       columna = columnasOcupadasHasta.length;
@@ -84,6 +84,9 @@ function calcularLayout(eventos: EventoDia[]): EventoPosicionado[] {
 }
 
 export default function DiaTimeline({ eventos, onPressEvento, esHoy }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => crearEstilos(colors), [colors]);
+
   const alturaTotal = (HORA_FIN - HORA_INICIO) * ALTURA_POR_HORA;
   const horas = Array.from({ length: HORA_FIN - HORA_INICIO + 1 }, (_, i) => HORA_INICIO + i);
   const posicionados = calcularLayout(eventos);
@@ -142,16 +145,18 @@ export default function DiaTimeline({ eventos, onPressEvento, esHoy }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  contenedor: { backgroundColor: colors.tarjeta, borderRadius: 10, overflow: 'hidden', marginTop: 8 },
-  celdaHora: { justifyContent: 'flex-start', alignItems: 'flex-end', paddingRight: 4 },
-  textoHora: { fontSize: 10, color: colors.textoSecundario, transform: [{ translateY: -6 }] },
-  columna: { flex: 1, borderLeftWidth: 1, borderLeftColor: '#F0F0F0' },
-  lineaHora: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: '#F0F0F0' },
-  bloque: { position: 'absolute', borderRadius: 6, padding: 4, overflow: 'hidden' },
-  bloqueTitulo: { color: '#fff', fontWeight: '700', fontSize: 11 },
-  bloqueSub: { color: '#fff', fontSize: 9, marginTop: 2 },
-  lineaAhora: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: colors.peligro },
-  puntoAhora: { position: 'absolute', left: -4, top: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.peligro },
-  vacio: { color: colors.textoSecundario, fontStyle: 'italic', padding: 12, textAlign: 'center' },
-});
+function crearEstilos(colors: Paleta) {
+  return StyleSheet.create({
+    contenedor: { backgroundColor: colors.tarjeta, borderRadius: 10, overflow: 'hidden', marginTop: 8 },
+    celdaHora: { justifyContent: 'flex-start', alignItems: 'flex-end', paddingRight: 4 },
+    textoHora: { fontSize: 10, color: colors.textoSecundario, transform: [{ translateY: -6 }] },
+    columna: { flex: 1, borderLeftWidth: 1, borderLeftColor: colors.borde },
+    lineaHora: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: colors.borde },
+    bloque: { position: 'absolute', borderRadius: 6, padding: 4, overflow: 'hidden' },
+    bloqueTitulo: { color: '#fff', fontWeight: '700', fontSize: 11 },
+    bloqueSub: { color: '#fff', fontSize: 9, marginTop: 2 },
+    lineaAhora: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: colors.peligro },
+    puntoAhora: { position: 'absolute', left: -4, top: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.peligro },
+    vacio: { color: colors.textoSecundario, fontStyle: 'italic', padding: 12, textAlign: 'center' },
+  });
+}

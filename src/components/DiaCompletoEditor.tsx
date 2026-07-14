@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { listarTareasPorFecha, crearTarea, marcarTareaCompletada, eliminarTarea } from '../db/tareasRepo';
 import { obtenerEntrada, guardarEntrada } from '../db/diarioRepo';
 import { TareaDia } from '../types';
-import { colors } from '../utils/theme';
+import { Paleta } from '../utils/theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface Props {
   fecha: string; // "YYYY-MM-DD"
@@ -15,6 +16,9 @@ function formatearFecha(fecha: string): string {
 }
 
 export default function DiaCompletoEditor({ fecha }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => crearEstilos(colors), [colors]);
+
   const [tareas, setTareas] = useState<TareaDia[]>([]);
   const [nuevaTarea, setNuevaTarea] = useState('');
   const [diario, setDiario] = useState('');
@@ -63,6 +67,7 @@ export default function DiaCompletoEditor({ fecha }: Props) {
         <TextInput
           style={styles.inputTarea}
           placeholder="Ej. Comprar despensa"
+          placeholderTextColor={colors.textoSecundario}
           value={nuevaTarea}
           onChangeText={setNuevaTarea}
           onSubmitEditing={agregarTarea}
@@ -97,6 +102,7 @@ export default function DiaCompletoEditor({ fecha }: Props) {
         style={styles.diarioInput}
         multiline
         placeholder="Hoy trabajé en..., fui a..., aprendí..."
+        placeholderTextColor={colors.textoSecundario}
         value={diario}
         onChangeText={setDiario}
         onBlur={guardarDiario}
@@ -108,22 +114,24 @@ export default function DiaCompletoEditor({ fecha }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  fechaTitulo: { fontSize: 18, fontWeight: '700', color: colors.texto, marginBottom: 12, textTransform: 'capitalize' },
-  seccionTitulo: { fontSize: 16, fontWeight: '700', color: colors.texto, marginBottom: 8 },
-  ayuda: { color: colors.textoSecundario, marginBottom: 8 },
-  filaInput: { flexDirection: 'row', marginBottom: 12 },
-  inputTarea: { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 10, backgroundColor: '#fff', marginRight: 8 },
-  botonAgregar: { backgroundColor: colors.primario, borderRadius: 8, paddingHorizontal: 14, justifyContent: 'center' },
-  botonAgregarTexto: { color: '#fff', fontWeight: '700' },
-  tareaFila: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.tarjeta, borderRadius: 8, padding: 10, marginBottom: 6 },
-  checkbox: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.primario, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  checkboxMarcado: { backgroundColor: colors.exito, borderColor: colors.exito },
-  checkboxTexto: { color: '#fff', fontWeight: '700', fontSize: 11 },
-  tareaTexto: { flex: 1, color: colors.texto },
-  tachado: { textDecorationLine: 'line-through', color: colors.textoSecundario },
-  eliminar: { color: colors.peligro, fontSize: 20, paddingHorizontal: 6 },
-  vacio: { color: colors.textoSecundario, fontStyle: 'italic', marginBottom: 8 },
-  diarioInput: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 12, backgroundColor: '#fff', minHeight: 140, textAlignVertical: 'top' },
-  botonGuardarDiario: { backgroundColor: colors.primario, borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 10 },
-});
+function crearEstilos(colors: Paleta) {
+  return StyleSheet.create({
+    fechaTitulo: { fontSize: 18, fontWeight: '700', color: colors.texto, marginBottom: 12, textTransform: 'capitalize' },
+    seccionTitulo: { fontSize: 16, fontWeight: '700', color: colors.texto, marginBottom: 8 },
+    ayuda: { color: colors.textoSecundario, marginBottom: 8 },
+    filaInput: { flexDirection: 'row', marginBottom: 12 },
+    inputTarea: { flex: 1, borderWidth: 1, borderColor: colors.borde, borderRadius: 8, padding: 10, backgroundColor: colors.tarjeta, color: colors.texto, marginRight: 8 },
+    botonAgregar: { backgroundColor: colors.primario, borderRadius: 8, paddingHorizontal: 14, justifyContent: 'center' },
+    botonAgregarTexto: { color: '#fff', fontWeight: '700' },
+    tareaFila: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.tarjeta, borderRadius: 8, padding: 10, marginBottom: 6 },
+    checkbox: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.primario, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+    checkboxMarcado: { backgroundColor: colors.exito, borderColor: colors.exito },
+    checkboxTexto: { color: '#fff', fontWeight: '700', fontSize: 11 },
+    tareaTexto: { flex: 1, color: colors.texto },
+    tachado: { textDecorationLine: 'line-through', color: colors.textoSecundario },
+    eliminar: { color: colors.peligro, fontSize: 20, paddingHorizontal: 6 },
+    vacio: { color: colors.textoSecundario, fontStyle: 'italic', marginBottom: 8 },
+    diarioInput: { borderWidth: 1, borderColor: colors.borde, borderRadius: 8, padding: 12, backgroundColor: colors.tarjeta, color: colors.texto, minHeight: 140, textAlignVertical: 'top' },
+    botonGuardarDiario: { backgroundColor: colors.primario, borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 10 },
+  });
+}

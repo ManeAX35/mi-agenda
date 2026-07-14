@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { crearPendiente, actualizarPendiente } from '../db/pendientesRepo';
 import { parsearRecordatorios } from '../utils/notifications';
 import { Pendiente } from '../types';
-import { colors } from '../utils/theme';
+import { Paleta } from '../utils/theme';
+import { useTheme } from '../context/ThemeContext';
 import SelectorRecordatorios from './SelectorRecordatorios';
 
 const TIPOS: { key: Pendiente['tipo']; label: string }[] = [
@@ -23,6 +24,12 @@ const TIPOS: { key: Pendiente['tipo']; label: string }[] = [
   { key: 'junta', label: 'Junta' },
   { key: 'entrega', label: 'Entrega' },
   { key: 'otro', label: 'Otro' },
+];
+
+const OPCIONES_REPETIR: { key: 'nunca' | 'semanal' | 'mensual'; label: string }[] = [
+  { key: 'nunca', label: 'No se repite' },
+  { key: 'semanal', label: 'Cada semana' },
+  { key: 'mensual', label: 'Cada mes' },
 ];
 
 interface Props {
@@ -34,12 +41,16 @@ interface Props {
 }
 
 export default function PendienteFormModal({ visible, editando, fechaInicial, onClose, onGuardado }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => crearEstilos(colors), [colors]);
+
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [tipo, setTipo] = useState<Pendiente['tipo']>('otro');
   const [fecha, setFecha] = useState(new Date());
   const [mostrarPicker, setMostrarPicker] = useState<'fecha' | 'hora' | null>(null);
   const [recordatoriosMinutos, setRecordatoriosMinutos] = useState<number[]>([60, 30]);
+  const [repetir, setRepetir] = useState<'nunca' | 'semanal' | 'mensual'>('nunca');
 
   useEffect(() => {
     if (!visible) return;
@@ -50,12 +61,14 @@ export default function PendienteFormModal({ visible, editando, fechaInicial, on
       setFecha(new Date(editando.fecha_limite));
       const existentes = parsearRecordatorios(editando.recordatorios_json).map((r) => r.minutos);
       setRecordatoriosMinutos(existentes.length > 0 ? existentes : [60, 30]);
+      setRepetir(editando.repetir || 'nunca');
     } else {
       setTitulo('');
       setDescripcion('');
       setTipo('otro');
       setFecha(fechaInicial || new Date());
       setRecordatoriosMinutos([60, 30]);
+      setRepetir('nunca');
     }
   }, [visible, editando, fechaInicial]);
 
@@ -65,6 +78,7 @@ export default function PendienteFormModal({ visible, editando, fechaInicial, on
       return;
     }
     const fechaISO = fecha.toISOString();
+    const repetirValor = repetir === 'nunca' ? null : repetir;
     if (editando) {
       await actualizarPendiente({
         ...editando,
@@ -72,6 +86,7 @@ export default function PendienteFormModal({ visible, editando, fechaInicial, on
         descripcion,
         fecha_limite: fechaISO,
         tipo,
+        repetir: repetirValor,
         recordatoriosMinutos,
       });
     } else {
@@ -80,6 +95,7 @@ export default function PendienteFormModal({ visible, editando, fechaInicial, on
         descripcion,
         fecha_limite: fechaISO,
         tipo,
+        repetir: repetirValor,
         recordatoriosMinutos,
       });
     }
@@ -98,10 +114,10 @@ export default function PendienteFormModal({ visible, editando, fechaInicial, on
             <Text style={styles.modalTitulo}>{editando ? 'Editar pendiente' : 'Nuevo pendiente'}</Text>
 
             <Text style={styles.etiqueta}>Título</Text>
-            <TextInput style={styles.input} value={titulo} onChangeText={setTitulo} placeholder="Ej. Pagar renta" />
+            <TextInput style={styles.input} value={titulo} onChangeText={setTitulo} placeholder="Ej. Pagar renta" placeholderTextColor={colors.textoSecundario} />
 
             <Text style={styles.etiqueta}>Notas (opcional)</Text>
-            <TextInput style={styles.input} value={descripcion} onChangeText={setDescripcion} multiline placeholder="Detalles..." />
+            <TextInput style={styles.input} value={descripcion} onChangeText={setDescripcion} multiline placeholder="Detalles..." placeholderTextColor={colors.textoSecundario} />
 
             <Text style={styles.etiqueta}>Tipo</Text>
             <View style={styles.filaChips}>
@@ -118,7 +134,7 @@ export default function PendienteFormModal({ visible, editando, fechaInicial, on
 
             <Text style={styles.etiqueta}>Fecha y hora límite</Text>
             <TouchableOpacity style={styles.input} onPress={() => setMostrarPicker('fecha')}>
-              <Text>{fecha.toLocaleDateString('es-MX')} {fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</Text>
+              <Text style={{ color: colors.texto }}>{fecha.toLocaleDateString('es-MX')} {fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</Text>
             </TouchableOpacity>
             {mostrarPicker === 'fecha' && (
               <DateTimePicker
@@ -152,6 +168,20 @@ export default function PendienteFormModal({ visible, editando, fechaInicial, on
               />
             )}
 
+            <Text style={styles.etiqueta}>Repetir</Text>
+            <Text style={styles.ayuda}>Cada vez que lo marques como hecho ✓, se crea el siguiente automáticamente — sigue así sin fin hasta que tú lo borres (no basta con completarlo para que pare).</Text>
+            <View style={styles.filaChips}>
+              {OPCIONES_REPETIR.map((op) => (
+                <TouchableOpacity
+                  key={op.key}
+                  style={[styles.chip, repetir === op.key && styles.chipActivo]}
+                  onPress={() => setRepetir(op.key)}
+                >
+                  <Text style={repetir === op.key ? styles.chipTextoActivo : styles.chipTexto}>{op.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             <SelectorRecordatorios seleccionados={recordatoriosMinutos} onChange={setRecordatoriosMinutos} />
 
             <View style={styles.filaBotones}>
@@ -169,20 +199,23 @@ export default function PendienteFormModal({ visible, editando, fechaInicial, on
   );
 }
 
-const styles = StyleSheet.create({
-  modalFondo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalContenido: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '90%' },
-  modalTitulo: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: colors.texto },
-  etiqueta: { fontWeight: '600', color: colors.texto, marginTop: 10, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 10, color: colors.texto },
-  filaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#E5E7EB' },
-  chipActivo: { backgroundColor: colors.primario },
-  chipTexto: { color: colors.texto },
-  chipTextoActivo: { color: '#fff', fontWeight: '600' },
-  filaBotones: { flexDirection: 'row', marginTop: 20, marginBottom: 10 },
-  botonCancelar: { flex: 1, padding: 12, alignItems: 'center', marginRight: 8, borderRadius: 8, backgroundColor: '#E5E7EB' },
-  botonCancelarTexto: { color: colors.texto, fontWeight: '600' },
-  botonGuardar: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 8, backgroundColor: colors.primario },
-  botonGuardarTexto: { color: '#fff', fontWeight: '700' },
-});
+function crearEstilos(colors: Paleta) {
+  return StyleSheet.create({
+    modalFondo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+    modalContenido: { backgroundColor: colors.tarjeta, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '90%' },
+    modalTitulo: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: colors.texto },
+    etiqueta: { fontWeight: '600', color: colors.texto, marginTop: 10, marginBottom: 4 },
+    ayuda: { color: colors.textoSecundario, fontSize: 12, marginBottom: 6 },
+    input: { borderWidth: 1, borderColor: colors.borde, borderRadius: 8, padding: 10, color: colors.texto },
+    filaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.fondo },
+    chipActivo: { backgroundColor: colors.primario },
+    chipTexto: { color: colors.texto },
+    chipTextoActivo: { color: '#fff', fontWeight: '600' },
+    filaBotones: { flexDirection: 'row', marginTop: 20, marginBottom: 10 },
+    botonCancelar: { flex: 1, padding: 12, alignItems: 'center', marginRight: 8, borderRadius: 8, backgroundColor: colors.fondo },
+    botonCancelarTexto: { color: colors.texto, fontWeight: '600' },
+    botonGuardar: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 8, backgroundColor: colors.primario },
+    botonGuardarTexto: { color: '#fff', fontWeight: '700' },
+  });
+}

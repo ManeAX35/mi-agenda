@@ -26,6 +26,7 @@ export interface Pendiente {
   recordatorios_json?: string | null; // JSON: RecordatorioProgramado[]
   completado: number; // 1 o 0
   tipo: 'pago' | 'junta' | 'entrega' | 'otro';
+  repetir?: 'semanal' | 'mensual' | null;
 }
 
 export interface TareaDia {

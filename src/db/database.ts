@@ -48,6 +48,11 @@ async function initSchema(database: SQLite.SQLiteDatabase) {
       contenido TEXT NOT NULL DEFAULT '',
       actualizado_en TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS configuracion (
+      clave TEXT PRIMARY KEY,
+      valor TEXT NOT NULL
+    );
   `);
 
   // Migraciones aditivas: agregan columnas nuevas para el recordatorio doble
@@ -61,6 +66,7 @@ async function initSchema(database: SQLite.SQLiteDatabase) {
     'ALTER TABLE pendientes ADD COLUMN notification_id_2 TEXT;',
     'ALTER TABLE pendientes ADD COLUMN recordatorios_activados INTEGER NOT NULL DEFAULT 1;',
     'ALTER TABLE pendientes ADD COLUMN recordatorios_json TEXT;',
+    'ALTER TABLE pendientes ADD COLUMN repetir TEXT;', // null | 'semanal' | 'mensual'
   ];
   for (const sql of migraciones) {
     try {

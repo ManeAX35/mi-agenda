@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,8 @@ import {
 } from '../db/actividadesRepo';
 import { parsearRecordatorios } from '../utils/notifications';
 import { ActividadRecurrente, DiaSemana } from '../types';
-import { colors } from '../utils/theme';
+import { Paleta } from '../utils/theme';
+import { useTheme } from '../context/ThemeContext';
 import SelectorRecordatorios from './SelectorRecordatorios';
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -45,6 +46,9 @@ export default function ActividadFormModal({
   onClose,
   onGuardado,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => crearEstilos(colors), [colors]);
+
   const [titulo, setTitulo] = useState('');
   const [categoria, setCategoria] = useState(CATEGORIAS[0]);
   const [diaSemana, setDiaSemana] = useState<DiaSemana>(1); // usado al editar (un registro = un día)
@@ -171,7 +175,7 @@ export default function ActividadFormModal({
             <Text style={styles.modalTitulo}>{editando ? 'Editar actividad' : 'Nueva actividad'}</Text>
 
             <Text style={styles.etiqueta}>Título</Text>
-            <TextInput style={styles.input} value={titulo} onChangeText={setTitulo} placeholder="Ej. Cálculo III" />
+            <TextInput style={styles.input} value={titulo} onChangeText={setTitulo} placeholder="Ej. Cálculo III" placeholderTextColor={colors.textoSecundario} />
 
             <Text style={styles.etiqueta}>Categoría</Text>
             <View style={styles.filaChips}>
@@ -226,16 +230,16 @@ export default function ActividadFormModal({
             <View style={styles.filaHoras}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={styles.etiqueta}>Hora inicio</Text>
-                <TextInput style={styles.input} value={horaInicio} onChangeText={setHoraInicio} placeholder="09:00" />
+                <TextInput style={styles.input} value={horaInicio} onChangeText={setHoraInicio} placeholder="09:00" placeholderTextColor={colors.textoSecundario} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.etiqueta}>Hora fin</Text>
-                <TextInput style={styles.input} value={horaFin} onChangeText={setHoraFin} placeholder="10:00" />
+                <TextInput style={styles.input} value={horaFin} onChangeText={setHoraFin} placeholder="10:00" placeholderTextColor={colors.textoSecundario} />
               </View>
             </View>
 
             <Text style={styles.etiqueta}>Lugar (opcional)</Text>
-            <TextInput style={styles.input} value={lugar} onChangeText={setLugar} placeholder="Ej. Salón 4, Oficina" />
+            <TextInput style={styles.input} value={lugar} onChangeText={setLugar} placeholder="Ej. Salón 4, Oficina" placeholderTextColor={colors.textoSecundario} />
 
             <Text style={styles.etiqueta}>Color</Text>
             <View style={styles.filaChips}>
@@ -265,24 +269,26 @@ export default function ActividadFormModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalFondo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalContenido: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '85%' },
-  modalTitulo: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: colors.texto },
-  etiqueta: { fontWeight: '600', color: colors.texto, marginTop: 10, marginBottom: 4 },
-  ayudaTexto: { color: colors.textoSecundario, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
-  input: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 10, color: colors.texto },
-  filaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#E5E7EB' },
-  chipActivo: { backgroundColor: colors.primario },
-  chipTexto: { color: colors.texto },
-  chipTextoActivo: { color: '#fff', fontWeight: '600' },
-  filaHoras: { flexDirection: 'row', marginTop: 4 },
-  colorDot: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: 'transparent' },
-  colorDotActivo: { borderColor: colors.texto },
-  filaBotones: { flexDirection: 'row', marginTop: 20, marginBottom: 10 },
-  botonCancelar: { flex: 1, padding: 12, alignItems: 'center', marginRight: 8, borderRadius: 8, backgroundColor: '#E5E7EB' },
-  botonCancelarTexto: { color: colors.texto, fontWeight: '600' },
-  botonGuardar: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 8, backgroundColor: colors.primario },
-  botonGuardarTexto: { color: '#fff', fontWeight: '700' },
-});
+function crearEstilos(colors: Paleta) {
+  return StyleSheet.create({
+    modalFondo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+    modalContenido: { backgroundColor: colors.tarjeta, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '85%' },
+    modalTitulo: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: colors.texto },
+    etiqueta: { fontWeight: '600', color: colors.texto, marginTop: 10, marginBottom: 4 },
+    ayudaTexto: { color: colors.textoSecundario, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
+    input: { borderWidth: 1, borderColor: colors.borde, borderRadius: 8, padding: 10, color: colors.texto },
+    filaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.fondo },
+    chipActivo: { backgroundColor: colors.primario },
+    chipTexto: { color: colors.texto },
+    chipTextoActivo: { color: '#fff', fontWeight: '600' },
+    filaHoras: { flexDirection: 'row', marginTop: 4 },
+    colorDot: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: 'transparent' },
+    colorDotActivo: { borderColor: colors.texto },
+    filaBotones: { flexDirection: 'row', marginTop: 20, marginBottom: 10 },
+    botonCancelar: { flex: 1, padding: 12, alignItems: 'center', marginRight: 8, borderRadius: 8, backgroundColor: colors.fondo },
+    botonCancelarTexto: { color: colors.texto, fontWeight: '600' },
+    botonGuardar: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 8, backgroundColor: colors.primario },
+    botonGuardarTexto: { color: '#fff', fontWeight: '700' },
+  });
+}

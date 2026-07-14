@@ -29,9 +29,9 @@ export async function crearPendiente(p: DatosPendiente): Promise<number> {
   const recordatorios = await programarRecordatoriosPendiente(p.titulo, p.fecha_limite, p.recordatoriosMinutos);
 
   const result = await db.runAsync(
-    `INSERT INTO pendientes (titulo, descripcion, fecha_limite, recordatorio_minutos_antes, notification_id, notification_id_2, recordatorios_activados, recordatorios_json, completado, tipo)
-     VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, 0, ?);`,
-    [p.titulo, p.descripcion ?? null, p.fecha_limite, p.recordatoriosMinutos.length > 0 ? 1 : 0, serializarRecordatorios(recordatorios), p.tipo]
+    `INSERT INTO pendientes (titulo, descripcion, fecha_limite, recordatorio_minutos_antes, notification_id, notification_id_2, recordatorios_activados, recordatorios_json, completado, tipo, repetir)
+     VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, 0, ?, ?);`,
+    [p.titulo, p.descripcion ?? null, p.fecha_limite, p.recordatoriosMinutos.length > 0 ? 1 : 0, serializarRecordatorios(recordatorios), p.tipo, p.repetir ?? null]
   );
   return result.lastInsertRowId;
 }
@@ -43,15 +43,46 @@ export async function actualizarPendiente(p: Pendiente & { recordatoriosMinutos:
 
   await db.runAsync(
     `UPDATE pendientes
-     SET titulo = ?, descripcion = ?, fecha_limite = ?, recordatorios_activados = ?, recordatorios_json = ?, tipo = ?
+     SET titulo = ?, descripcion = ?, fecha_limite = ?, recordatorios_activados = ?, recordatorios_json = ?, tipo = ?, repetir = ?
      WHERE id = ?;`,
-    [p.titulo, p.descripcion ?? null, p.fecha_limite, p.recordatoriosMinutos.length > 0 ? 1 : 0, serializarRecordatorios(recordatorios), p.tipo, p.id]
+    [p.titulo, p.descripcion ?? null, p.fecha_limite, p.recordatoriosMinutos.length > 0 ? 1 : 0, serializarRecordatorios(recordatorios), p.tipo, p.repetir ?? null, p.id]
   );
 }
 
+function calcularSiguienteFecha(fechaISO: string, repetir: 'semanal' | 'mensual'): string {
+  const f = new Date(fechaISO);
+  if (repetir === 'semanal') {
+    f.setDate(f.getDate() + 7);
+  } else {
+    f.setMonth(f.getMonth() + 1);
+  }
+  return f.toISOString();
+}
+
+/**
+ * Marca un pendiente como completado o no. Si se marca como completado Y el pendiente
+ * es recurrente (repetir = 'semanal'|'mensual'), crea automáticamente la siguiente
+ * ocurrencia (misma info, nueva fecha), con sus propios recordatorios programados.
+ */
 export async function marcarCompletado(id: number, completado: boolean): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE pendientes SET completado = ? WHERE id = ?;', [completado ? 1 : 0, id]);
+
+  if (completado) {
+    const fila = await db.getFirstAsync<Pendiente>('SELECT * FROM pendientes WHERE id = ?;', [id]);
+    if (fila?.repetir === 'semanal' || fila?.repetir === 'mensual') {
+      const siguienteFecha = calcularSiguienteFecha(fila.fecha_limite, fila.repetir);
+      const minutos = parsearRecordatorios(fila.recordatorios_json).map((r) => r.minutos);
+      await crearPendiente({
+        titulo: fila.titulo,
+        descripcion: fila.descripcion,
+        fecha_limite: siguienteFecha,
+        tipo: fila.tipo,
+        repetir: fila.repetir,
+        recordatoriosMinutos: minutos,
+      });
+    }
+  }
 }
 
 export async function eliminarPendiente(id: number, recordatoriosJson?: string | null): Promise<void> {

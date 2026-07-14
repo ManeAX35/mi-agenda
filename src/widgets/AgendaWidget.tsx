@@ -26,7 +26,8 @@ export function AgendaWidget({ fechaTexto, eventos }: Props) {
         padding: 12,
         flexDirection: 'column',
       }}
-      clickAction="OPEN_APP"
+      clickAction="OPEN_URI"
+      clickActionData={{ uri: 'miagenda://agenda' }}
     >
       <TextWidget
         text="Mi Agenda"

@@ -1,10 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { ActividadRecurrente, DiaSemana } from '../types';
-import { colors } from '../utils/theme';
+import { Paleta } from '../utils/theme';
+import { useTheme } from '../context/ThemeContext';
 
-const HORA_INICIO = 6; // 6:00 am
-const HORA_FIN = 22; // 10:00 pm
 const ALTURA_POR_HORA = 56;
 const ANCHO_COLUMNA_HORA = 46;
 const ANCHO_COLUMNA_DIA = 108;
@@ -20,12 +19,17 @@ interface Props {
   actividadesPorDia: Record<number, ActividadRecurrente[]>;
   onPressActividad: (a: ActividadRecurrente) => void;
   onPressSlot?: (diaSemana: DiaSemana, hora: number) => void;
+  horaInicio?: number; // default 6 (6am)
+  horaFin?: number; // default 22 (10pm)
 }
 
-export default function HorarioSemanal({ actividadesPorDia, onPressActividad, onPressSlot }: Props) {
-  const totalHoras = HORA_FIN - HORA_INICIO;
+export default function HorarioSemanal({ actividadesPorDia, onPressActividad, onPressSlot, horaInicio = 6, horaFin = 22 }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => crearEstilos(colors), [colors]);
+
+  const totalHoras = horaFin - horaInicio;
   const alturaTotal = totalHoras * ALTURA_POR_HORA;
-  const horas = Array.from({ length: totalHoras + 1 }, (_, i) => HORA_INICIO + i);
+  const horas = Array.from({ length: totalHoras + 1 }, (_, i) => horaInicio + i);
 
   // El encabezado (nombres de los días) y el cuerpo (horas + actividades) usan
   // scrolls horizontales separados; se sincronizan a mano para que se muevan juntos.
@@ -38,18 +42,18 @@ export default function HorarioSemanal({ actividadesPorDia, onPressActividad, on
   }
 
   function bloqueEstilo(a: ActividadRecurrente) {
-    const inicioMin = minutosDesdeMedianoche(a.hora_inicio) - HORA_INICIO * 60;
-    const finMin = minutosDesdeMedianoche(a.hora_fin) - HORA_INICIO * 60;
+    const inicioMin = minutosDesdeMedianoche(a.hora_inicio) - horaInicio * 60;
+    const finMin = minutosDesdeMedianoche(a.hora_fin) - horaInicio * 60;
     const top = Math.max(0, (inicioMin / 60) * ALTURA_POR_HORA);
     const alturaCalculada = Math.max(24, ((finMin - inicioMin) / 60) * ALTURA_POR_HORA);
     return { top, height: alturaCalculada };
   }
 
   // Barrita de "hora actual": solo se dibuja en la columna del día de hoy, si la hora
-  // actual cae dentro del rango visible (HORA_INICIO a HORA_FIN).
+  // actual cae dentro del rango visible (horaInicio a horaFin).
   const ahora = new Date();
   const diaDeHoy = ahora.getDay();
-  const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes() - HORA_INICIO * 60;
+  const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes() - horaInicio * 60;
   const mostrarLineaAhora = minutosAhora >= 0 && minutosAhora <= totalHoras * 60;
   const topLineaAhora = (minutosAhora / 60) * ALTURA_POR_HORA;
 
@@ -100,7 +104,7 @@ export default function HorarioSemanal({ actividadesPorDia, onPressActividad, on
                   {horas.slice(0, -1).map((h) => (
                     <TouchableOpacity
                       key={h}
-                      style={[styles.celdaTocable, { top: (h - HORA_INICIO) * ALTURA_POR_HORA, height: ALTURA_POR_HORA }]}
+                      style={[styles.celdaTocable, { top: (h - horaInicio) * ALTURA_POR_HORA, height: ALTURA_POR_HORA }]}
                       activeOpacity={onPressSlot ? 0.5 : 1}
                       onPress={() => onPressSlot && onPressSlot(diaIdx as DiaSemana, h)}
                     >
@@ -140,19 +144,21 @@ export default function HorarioSemanal({ actividadesPorDia, onPressActividad, on
   );
 }
 
-const styles = StyleSheet.create({
-  contenedor: { backgroundColor: colors.tarjeta, marginHorizontal: 12, borderRadius: 10, overflow: 'hidden' },
-  filaEncabezado: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', backgroundColor: '#F9FAFB' },
-  celdaEncabezado: { alignItems: 'center', paddingVertical: 8 },
-  textoEncabezado: { fontWeight: '700', color: colors.texto, fontSize: 12 },
-  celdaHora: { justifyContent: 'flex-start', alignItems: 'flex-end', paddingRight: 4 },
-  textoHora: { fontSize: 10, color: colors.textoSecundario, transform: [{ translateY: -6 }] },
-  columnaDia: { borderLeftWidth: 1, borderLeftColor: '#F0F0F0' },
-  celdaTocable: { position: 'absolute', left: 0, right: 0, justifyContent: 'flex-start' },
-  lineaHora: { height: 1, backgroundColor: '#F0F0F0' },
-  bloqueActividad: { position: 'absolute', left: 2, right: 2, borderRadius: 6, padding: 4, overflow: 'hidden' },
-  bloqueTitulo: { color: '#fff', fontWeight: '700', fontSize: 11 },
-  bloqueHora: { color: '#fff', fontSize: 9, marginTop: 2 },
-  lineaAhora: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: colors.peligro },
-  puntoAhora: { position: 'absolute', left: -4, top: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.peligro },
-});
+function crearEstilos(colors: Paleta) {
+  return StyleSheet.create({
+    contenedor: { backgroundColor: colors.tarjeta, marginHorizontal: 12, borderRadius: 10, overflow: 'hidden' },
+    filaEncabezado: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.borde, backgroundColor: colors.fondo },
+    celdaEncabezado: { alignItems: 'center', paddingVertical: 8 },
+    textoEncabezado: { fontWeight: '700', color: colors.texto, fontSize: 12 },
+    celdaHora: { justifyContent: 'flex-start', alignItems: 'flex-end', paddingRight: 4 },
+    textoHora: { fontSize: 10, color: colors.textoSecundario, transform: [{ translateY: -6 }] },
+    columnaDia: { borderLeftWidth: 1, borderLeftColor: colors.borde },
+    celdaTocable: { position: 'absolute', left: 0, right: 0, justifyContent: 'flex-start' },
+    lineaHora: { height: 1, backgroundColor: colors.borde },
+    bloqueActividad: { position: 'absolute', left: 2, right: 2, borderRadius: 6, padding: 4, overflow: 'hidden' },
+    bloqueTitulo: { color: '#fff', fontWeight: '700', fontSize: 11 },
+    bloqueHora: { color: '#fff', fontSize: 9, marginTop: 2 },
+    lineaAhora: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: colors.peligro },
+    puntoAhora: { position: 'absolute', left: -4, top: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.peligro },
+  });
+}

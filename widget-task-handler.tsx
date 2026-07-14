@@ -6,12 +6,9 @@ import { listarActividades } from './src/db/actividadesRepo';
 import { listarPendientes } from './src/db/pendientesRepo';
 import { listarTareasPorFecha, marcarTareaCompletada } from './src/db/tareasRepo';
 import { colors } from './src/utils/theme';
+import { hoyLocalISO, fechaLocalDesdeISO, horaLocalDesdeISO } from './src/utils/tiempo';
 
 const NOMBRES_DIAS_LARGO = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-
-function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function capitalizar(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -22,14 +19,14 @@ async function construirAgendaWidget(): Promise<React.JSX.Element> {
   const diaSemanaHoy = hoy.getDay();
   const [actividades, pendientes] = await Promise.all([listarActividades(), listarPendientes()]);
 
-  const hoyISOStr = hoyISO();
+  const hoyISOStr = hoyLocalISO();
   const eventos: EventoWidget[] = [
     ...actividades
       .filter((a) => a.dia_semana === diaSemanaHoy)
       .map((a) => ({ titulo: a.titulo, hora: a.hora_inicio, color: a.color || colors.primario })),
     ...pendientes
-      .filter((p) => p.fecha_limite.slice(0, 10) === hoyISOStr)
-      .map((p) => ({ titulo: p.titulo, hora: p.fecha_limite.slice(11, 16), color: colors.acento })),
+      .filter((p) => fechaLocalDesdeISO(p.fecha_limite) === hoyISOStr)
+      .map((p) => ({ titulo: p.titulo, hora: horaLocalDesdeISO(p.fecha_limite), color: colors.acento })),
   ].sort((a, b) => a.hora.localeCompare(b.hora));
 
   const fechaTexto = `${capitalizar(NOMBRES_DIAS_LARGO[diaSemanaHoy])} ${hoy.getDate()}`;
@@ -38,7 +35,7 @@ async function construirAgendaWidget(): Promise<React.JSX.Element> {
 }
 
 async function construirTareasWidget(): Promise<React.JSX.Element> {
-  const tareas = await listarTareasPorFecha(hoyISO());
+  const tareas = await listarTareasPorFecha(hoyLocalISO());
   const items: TareaWidgetItem[] = tareas.map((t) => ({ id: t.id, titulo: t.titulo, completado: !!t.completado }));
   return <TareasWidget tareas={items} />;
 }

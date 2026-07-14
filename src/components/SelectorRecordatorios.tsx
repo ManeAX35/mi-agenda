@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { OPCIONES_RECORDATORIO_MINUTOS, etiquetaRecordatorio } from '../utils/notifications';
-import { colors } from '../utils/theme';
+import { Paleta } from '../utils/theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface Props {
   seleccionados: number[];
@@ -9,6 +10,9 @@ interface Props {
 }
 
 export default function SelectorRecordatorios({ seleccionados, onChange }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => crearEstilos(colors), [colors]);
+
   function alternar(minutos: number) {
     if (seleccionados.includes(minutos)) {
       onChange(seleccionados.filter((m) => m !== minutos));
@@ -40,12 +44,14 @@ export default function SelectorRecordatorios({ seleccionados, onChange }: Props
   );
 }
 
-const styles = StyleSheet.create({
-  etiqueta: { fontWeight: '600', color: colors.texto, marginTop: 10, marginBottom: 4 },
-  filaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#E5E7EB' },
-  chipActivo: { backgroundColor: colors.primario },
-  chipTexto: { color: colors.texto },
-  chipTextoActivo: { color: '#fff', fontWeight: '600' },
-  ayuda: { color: colors.textoSecundario, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
-});
+function crearEstilos(colors: Paleta) {
+  return StyleSheet.create({
+    etiqueta: { fontWeight: '600', color: colors.texto, marginTop: 10, marginBottom: 4 },
+    filaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.fondo },
+    chipActivo: { backgroundColor: colors.primario },
+    chipTexto: { color: colors.texto },
+    chipTextoActivo: { color: '#fff', fontWeight: '600' },
+    ayuda: { color: colors.textoSecundario, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
+  });
+}

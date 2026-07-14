@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { obtenerConfig, guardarConfig } from '../db/configRepo';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
