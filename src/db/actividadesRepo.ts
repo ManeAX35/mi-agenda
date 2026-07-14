@@ -18,6 +18,23 @@ export async function crearActividad(a: Omit<ActividadRecurrente, 'id' | 'activo
   return result.lastInsertRowId;
 }
 
+/**
+ * Crea la misma actividad (mismo título, horario, categoría) en varios días de la
+ * semana a la vez, para no tener que repetir el alta día por día.
+ * Retorna los ids de las filas creadas, una por cada día seleccionado.
+ */
+export async function crearActividadEnVariosDias(
+  base: Omit<ActividadRecurrente, 'id' | 'activo' | 'dia_semana'>,
+  dias: ActividadRecurrente['dia_semana'][]
+): Promise<number[]> {
+  const ids: number[] = [];
+  for (const dia of dias) {
+    const id = await crearActividad({ ...base, dia_semana: dia });
+    ids.push(id);
+  }
+  return ids;
+}
+
 export async function actualizarActividad(a: ActividadRecurrente): Promise<void> {
   const db = await getDb();
   await db.runAsync(

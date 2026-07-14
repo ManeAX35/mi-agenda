@@ -8,6 +8,7 @@ import AgendaScreen from './src/screens/AgendaScreen';
 import ActividadesScreen from './src/screens/ActividadesScreen';
 import PendientesScreen from './src/screens/PendientesScreen';
 import HoyScreen from './src/screens/HoyScreen';
+import DiarioScreen from './src/screens/DiarioScreen';
 import { pedirPermisos } from './src/utils/notifications';
 import { colors } from './src/utils/theme';
 
@@ -18,6 +19,7 @@ const ICONOS: Record<string, string> = {
   Agenda: '📅',
   Recurrentes: '🔁',
   Pendientes: '⏰',
+  Diario: '📔',
 };
 
 export default function App() {
@@ -41,6 +43,7 @@ export default function App() {
         <Tab.Screen name="Agenda" component={AgendaScreen} options={{ title: 'Agenda' }} />
         <Tab.Screen name="Recurrentes" component={ActividadesScreen} options={{ title: 'Actividades' }} />
         <Tab.Screen name="Pendientes" component={PendientesScreen} options={{ title: 'Pendientes' }} />
+        <Tab.Screen name="Diario" component={DiarioScreen} options={{ title: 'Diario' }} />
       </Tab.Navigator>
     </NavigationContainer>
   );

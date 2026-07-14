@@ -14,6 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   listarActividades,
   crearActividad,
+  crearActividadEnVariosDias,
   actualizarActividad,
   eliminarActividad,
 } from '../db/actividadesRepo';
@@ -31,7 +32,8 @@ export default function ActividadesScreen() {
 
   const [titulo, setTitulo] = useState('');
   const [categoria, setCategoria] = useState(CATEGORIAS[0]);
-  const [diaSemana, setDiaSemana] = useState<DiaSemana>(1);
+  const [diaSemana, setDiaSemana] = useState<DiaSemana>(1); // usado solo al editar (un registro = un día)
+  const [diasSeleccionados, setDiasSeleccionados] = useState<DiaSemana[]>([1]); // usado al crear (varios días a la vez)
   const [horaInicio, setHoraInicio] = useState('09:00');
   const [horaFin, setHoraFin] = useState('10:00');
   const [lugar, setLugar] = useState('');
@@ -52,6 +54,7 @@ export default function ActividadesScreen() {
     setTitulo('');
     setCategoria(CATEGORIAS[0]);
     setDiaSemana(1);
+    setDiasSeleccionados([1]);
     setHoraInicio('09:00');
     setHoraFin('10:00');
     setLugar('');
@@ -75,6 +78,12 @@ export default function ActividadesScreen() {
     return /^([01]\d|2[0-3]):[0-5]\d$/.test(h);
   }
 
+  function alternarDia(dia: DiaSemana) {
+    setDiasSeleccionados((actuales) =>
+      actuales.includes(dia) ? actuales.filter((d) => d !== dia) : [...actuales, dia]
+    );
+  }
+
   async function guardar() {
     if (!titulo.trim()) {
       Alert.alert('Falta el título', 'Escribe un nombre para la actividad.');
@@ -85,6 +94,7 @@ export default function ActividadesScreen() {
       return;
     }
     if (editando) {
+      // Al editar, cada registro sigue representando un solo día
       await actualizarActividad({
         ...editando,
         titulo,
@@ -96,15 +106,15 @@ export default function ActividadesScreen() {
         color,
       });
     } else {
-      await crearActividad({
-        titulo,
-        categoria,
-        dia_semana: diaSemana,
-        hora_inicio: horaInicio,
-        hora_fin: horaFin,
-        lugar,
-        color,
-      });
+      if (diasSeleccionados.length === 0) {
+        Alert.alert('Elige al menos un día', 'Marca los días de la semana en que ocurre esta actividad.');
+        return;
+      }
+      // Al crear, se puede elegir varios días: se crea un registro por cada uno
+      await crearActividadEnVariosDias(
+        { titulo, categoria, hora_inicio: horaInicio, hora_fin: horaFin, lugar, color },
+        diasSeleccionados
+      );
     }
     setModalVisible(false);
     cargar();
@@ -179,18 +189,42 @@ export default function ActividadesScreen() {
                 ))}
               </View>
 
-              <Text style={styles.etiqueta}>Día de la semana</Text>
-              <View style={styles.filaChips}>
-                {DIAS.map((d, idx) => (
-                  <TouchableOpacity
-                    key={d}
-                    style={[styles.chip, diaSemana === idx && styles.chipActivo]}
-                    onPress={() => setDiaSemana(idx as DiaSemana)}
-                  >
-                    <Text style={diaSemana === idx ? styles.chipTextoActivo : styles.chipTexto}>{d}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              {editando ? (
+                <>
+                  <Text style={styles.etiqueta}>Día de la semana</Text>
+                  <View style={styles.filaChips}>
+                    {DIAS.map((d, idx) => (
+                      <TouchableOpacity
+                        key={d}
+                        style={[styles.chip, diaSemana === idx && styles.chipActivo]}
+                        onPress={() => setDiaSemana(idx as DiaSemana)}
+                      >
+                        <Text style={diaSemana === idx ? styles.chipTextoActivo : styles.chipTexto}>{d}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.etiqueta}>Días de la semana (elige uno o varios)</Text>
+                  <View style={styles.filaChips}>
+                    {DIAS.map((d, idx) => (
+                      <TouchableOpacity
+                        key={d}
+                        style={[styles.chip, diasSeleccionados.includes(idx as DiaSemana) && styles.chipActivo]}
+                        onPress={() => alternarDia(idx as DiaSemana)}
+                      >
+                        <Text style={diasSeleccionados.includes(idx as DiaSemana) ? styles.chipTextoActivo : styles.chipTexto}>
+                          {d}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={styles.ayudaTexto}>
+                    Se creará "{titulo || 'la actividad'}" en {diasSeleccionados.length || 0} día(s) con el mismo horario.
+                  </Text>
+                </>
+              )}
 
               <View style={styles.filaHoras}>
                 <View style={{ flex: 1, marginRight: 8 }}>
@@ -265,6 +299,7 @@ const styles = StyleSheet.create({
   modalContenido: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '85%' },
   modalTitulo: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: colors.texto },
   etiqueta: { fontWeight: '600', color: colors.texto, marginTop: 10, marginBottom: 4 },
+  ayudaTexto: { color: colors.textoSecundario, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
   input: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 10, color: colors.texto },
   filaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#E5E7EB' },
