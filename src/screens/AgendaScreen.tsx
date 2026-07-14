@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import { listarActividades } from '../db/actividadesRepo';
@@ -10,6 +10,8 @@ import HorarioSemanal from '../components/HorarioSemanal';
 import ActividadFormModal from '../components/ActividadFormModal';
 import PendienteFormModal from '../components/PendienteFormModal';
 import DiaTimeline, { EventoDia } from '../components/DiaTimeline';
+
+const DIAS_LARGOS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
 export default function AgendaScreen() {
   const [modo, setModo] = useState<'semana' | 'mes'>('semana');
@@ -25,9 +27,11 @@ export default function AgendaScreen() {
   const [actividadEditando, setActividadEditando] = useState<ActividadRecurrente | null>(null);
   const [slotTocado, setSlotTocado] = useState<{ dia: DiaSemana; hora: number } | null>(null);
 
-  // Modal de pendiente, para editar tocando un bloque en la línea de tiempo del día
+  // Modal de pendiente, para editar tocando un bloque en la línea de tiempo del día,
+  // o para crear uno nuevo (desde el botón "+" del mes, o eligiendo "Pendiente" al tocar un slot de la semana)
   const [modalPendienteVisible, setModalPendienteVisible] = useState(false);
   const [pendienteEditando, setPendienteEditando] = useState<Pendiente | null>(null);
+  const [fechaInicialPendiente, setFechaInicialPendiente] = useState<Date | undefined>(undefined);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,11 +103,50 @@ export default function AgendaScreen() {
     setModalActividadVisible(true);
   }
 
-  /** Al tocar una hora vacía del horario semanal, abre el formulario de nueva actividad prellenado. */
+  /** Al tocar una hora vacía del horario semanal, pregunta si quiere una actividad recurrente
+   *  o un pendiente puntual, ya que el horario semanal es un molde (no fechas reales). */
   function abrirNuevaDesdeSlot(dia: DiaSemana, hora: number) {
-    setActividadEditando(null);
-    setSlotTocado({ dia, hora });
-    setModalActividadVisible(true);
+    Alert.alert('¿Qué quieres agregar?', `${DIAS_LARGOS[dia]} a las ${horaFormateada(hora)}`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Pendiente',
+        onPress: () => {
+          setPendienteEditando(null);
+          setFechaInicialPendiente(proximaFechaParaDia(dia, hora));
+          setModalPendienteVisible(true);
+        },
+      },
+      {
+        text: 'Actividad recurrente',
+        onPress: () => {
+          setActividadEditando(null);
+          setSlotTocado({ dia, hora });
+          setModalActividadVisible(true);
+        },
+      },
+    ]);
+  }
+
+  /** Calcula la próxima fecha real (a partir de hoy) que cae en un día de la semana y hora dados. */
+  function proximaFechaParaDia(diaSemana: DiaSemana, hora: number): Date {
+    const ahora = new Date();
+    const resultado = new Date(ahora);
+    const diff = (diaSemana - ahora.getDay() + 7) % 7;
+    resultado.setDate(ahora.getDate() + diff);
+    resultado.setHours(hora, 0, 0, 0);
+    if (diff === 0 && resultado.getTime() < ahora.getTime()) {
+      resultado.setDate(resultado.getDate() + 7); // si ya pasó hoy, salta a la próxima semana
+    }
+    return resultado;
+  }
+
+  /** Botón "+" del día en la vista mensual: solo crea un pendiente (una actividad recurrente
+   *  no tiene sentido aquí porque no está atada a una fecha específica). */
+  function abrirNuevoPendienteDelDia() {
+    const base = new Date(fechaSeleccionada + 'T12:00:00');
+    setPendienteEditando(null);
+    setFechaInicialPendiente(base);
+    setModalPendienteVisible(true);
   }
 
   function horaFormateada(hora: number): string {
@@ -127,6 +170,7 @@ export default function AgendaScreen() {
       const real = pendientesDelDia.find((p) => `p-${p.id}` === id);
       if (real) {
         setPendienteEditando(real);
+        setFechaInicialPendiente(undefined);
         setModalPendienteVisible(true);
       }
     }
@@ -182,9 +226,14 @@ export default function AgendaScreen() {
           </View>
 
           <View style={styles.diaBloque}>
-            <Text style={styles.diaTitulo}>Tu día · {fechaSeleccionada}</Text>
+            <View style={styles.filaTituloDia}>
+              <Text style={styles.diaTitulo}>Tu día · {fechaSeleccionada}</Text>
+              <TouchableOpacity style={styles.botonAgregarPendiente} onPress={abrirNuevoPendienteDelDia}>
+                <Text style={styles.botonAgregarPendienteTexto}>+ Pendiente</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.ayuda}>Actividades recurrentes y pendientes juntos. Si se cruzan en horario, se ven lado a lado.</Text>
-            <DiaTimeline eventos={eventosDelDia} onPressEvento={editarEventoDelDia} />
+            <DiaTimeline eventos={eventosDelDia} onPressEvento={editarEventoDelDia} esHoy={fechaSeleccionada === new Date().toISOString().slice(0, 10)} />
           </View>
         </ScrollView>
       )}
@@ -205,9 +254,11 @@ export default function AgendaScreen() {
       <PendienteFormModal
         visible={modalPendienteVisible}
         editando={pendienteEditando}
+        fechaInicial={fechaInicialPendiente}
         onClose={() => setModalPendienteVisible(false)}
         onGuardado={() => {
           setModalPendienteVisible(false);
+          setFechaInicialPendiente(undefined);
           cargar();
         }}
       />
@@ -228,6 +279,9 @@ const styles = StyleSheet.create({
   dotLeyenda: { width: 8, height: 8, borderRadius: 4 },
   leyendaTexto: { color: colors.textoSecundario, fontSize: 12 },
   diaBloque: { paddingHorizontal: 16, marginTop: 12 },
+  filaTituloDia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  botonAgregarPendiente: { backgroundColor: colors.acento, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  botonAgregarPendienteTexto: { color: '#fff', fontWeight: '700', fontSize: 12 },
   diaTitulo: { fontSize: 16, fontWeight: '700', color: colors.texto, marginBottom: 6 },
   sinActividades: { color: colors.textoSecundario, fontStyle: 'italic', marginBottom: 8 },
   actividadItem: {

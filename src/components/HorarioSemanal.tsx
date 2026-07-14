@@ -45,6 +45,14 @@ export default function HorarioSemanal({ actividadesPorDia, onPressActividad, on
     return { top, height: alturaCalculada };
   }
 
+  // Barrita de "hora actual": solo se dibuja en la columna del día de hoy, si la hora
+  // actual cae dentro del rango visible (HORA_INICIO a HORA_FIN).
+  const ahora = new Date();
+  const diaDeHoy = ahora.getDay();
+  const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes() - HORA_INICIO * 60;
+  const mostrarLineaAhora = minutosAhora >= 0 && minutosAhora <= totalHoras * 60;
+  const topLineaAhora = (minutosAhora / 60) * ALTURA_POR_HORA;
+
   return (
     <View style={styles.contenedor}>
       {/* Encabezado con nombres de los días. Su scroll NO es tocable por el usuario;
@@ -67,7 +75,7 @@ export default function HorarioSemanal({ actividadesPorDia, onPressActividad, on
         </ScrollView>
       </View>
 
-      <ScrollView style={{ maxHeight: 520 }}>
+      <ScrollView style={{ maxHeight: 520 }} nestedScrollEnabled>
         <View style={{ flexDirection: 'row' }}>
           {/* Columna de horas, fija a la izquierda */}
           <View style={{ width: ANCHO_COLUMNA_HORA }}>
@@ -117,6 +125,11 @@ export default function HorarioSemanal({ actividadesPorDia, onPressActividad, on
                       </TouchableOpacity>
                     );
                   })}
+                  {mostrarLineaAhora && diaIdx === diaDeHoy && (
+                    <View style={[styles.lineaAhora, { top: topLineaAhora }]} pointerEvents="none">
+                      <View style={styles.puntoAhora} />
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
@@ -140,4 +153,6 @@ const styles = StyleSheet.create({
   bloqueActividad: { position: 'absolute', left: 2, right: 2, borderRadius: 6, padding: 4, overflow: 'hidden' },
   bloqueTitulo: { color: '#fff', fontWeight: '700', fontSize: 11 },
   bloqueHora: { color: '#fff', fontSize: 9, marginTop: 2 },
+  lineaAhora: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: colors.peligro },
+  puntoAhora: { position: 'absolute', left: -4, top: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.peligro },
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { colors } from '../utils/theme';
 import { minutosDesdeMedianoche } from '../utils/tiempo';
 
@@ -19,6 +19,7 @@ export interface EventoDia {
 interface Props {
   eventos: EventoDia[];
   onPressEvento?: (id: string) => void;
+  esHoy?: boolean;
 }
 
 interface EventoPosicionado extends EventoDia {
@@ -82,14 +83,17 @@ function calcularLayout(eventos: EventoDia[]): EventoPosicionado[] {
   return resultado;
 }
 
-export default function DiaTimeline({ eventos, onPressEvento }: Props) {
+export default function DiaTimeline({ eventos, onPressEvento, esHoy }: Props) {
   const alturaTotal = (HORA_FIN - HORA_INICIO) * ALTURA_POR_HORA;
   const horas = Array.from({ length: HORA_FIN - HORA_INICIO + 1 }, (_, i) => HORA_INICIO + i);
   const posicionados = calcularLayout(eventos);
 
+  const ahora = new Date();
+  const topLineaAhora = ((ahora.getHours() * 60 + ahora.getMinutes() - HORA_INICIO * 60) / 60) * ALTURA_POR_HORA;
+
   return (
     <View style={styles.contenedor}>
-      <ScrollView style={{ maxHeight: 420 }}>
+      <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled>
         <View style={{ flexDirection: 'row' }}>
           <View style={{ width: 42 }}>
             {horas.map((h) => (
@@ -125,6 +129,11 @@ export default function DiaTimeline({ eventos, onPressEvento }: Props) {
                 </TouchableOpacity>
               );
             })}
+            {esHoy && (
+              <View style={[styles.lineaAhora, { top: topLineaAhora }]} pointerEvents="none">
+                <View style={styles.puntoAhora} />
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -142,5 +151,7 @@ const styles = StyleSheet.create({
   bloque: { position: 'absolute', borderRadius: 6, padding: 4, overflow: 'hidden' },
   bloqueTitulo: { color: '#fff', fontWeight: '700', fontSize: 11 },
   bloqueSub: { color: '#fff', fontSize: 9, marginTop: 2 },
+  lineaAhora: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: colors.peligro },
+  puntoAhora: { position: 'absolute', left: -4, top: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.peligro },
   vacio: { color: colors.textoSecundario, fontStyle: 'italic', padding: 12, textAlign: 'center' },
 });
