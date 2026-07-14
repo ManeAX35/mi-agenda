@@ -79,27 +79,32 @@ export default function PendienteFormModal({ visible, editando, fechaInicial, on
     }
     const fechaISO = fecha.toISOString();
     const repetirValor = repetir === 'nunca' ? null : repetir;
-    if (editando) {
-      await actualizarPendiente({
-        ...editando,
-        titulo,
-        descripcion,
-        fecha_limite: fechaISO,
-        tipo,
-        repetir: repetirValor,
-        recordatoriosMinutos,
-      });
-    } else {
-      await crearPendiente({
-        titulo,
-        descripcion,
-        fecha_limite: fechaISO,
-        tipo,
-        repetir: repetirValor,
-        recordatoriosMinutos,
-      });
+    try {
+      if (editando) {
+        await actualizarPendiente({
+          ...editando,
+          titulo,
+          descripcion,
+          fecha_limite: fechaISO,
+          tipo,
+          repetir: repetirValor,
+          recordatoriosMinutos,
+        });
+      } else {
+        await crearPendiente({
+          titulo,
+          descripcion,
+          fecha_limite: fechaISO,
+          tipo,
+          repetir: repetirValor,
+          recordatoriosMinutos,
+        });
+      }
+      onGuardado();
+    } catch (e: any) {
+      console.error('Error al guardar pendiente:', e);
+      Alert.alert('Error al guardar', e?.message || 'Algo falló al guardar el pendiente.');
     }
-    onGuardado();
   }
 
   return (
@@ -141,9 +146,11 @@ export default function PendienteFormModal({ visible, editando, fechaInicial, on
                 value={fecha}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                onChange={(_, nuevaFecha) => {
+                onChange={(evento, nuevaFecha) => {
                   if (Platform.OS === 'android') setMostrarPicker(null);
-                  if (nuevaFecha) {
+                  // Igual que en Diario: cerrar sin elegir también dispara onChange en
+                  // Android (type "dismissed"), por eso se valida "set" antes de aplicar.
+                  if (evento.type === 'set' && nuevaFecha) {
                     const combinada = new Date(fecha);
                     combinada.setFullYear(nuevaFecha.getFullYear(), nuevaFecha.getMonth(), nuevaFecha.getDate());
                     setFecha(combinada);
@@ -157,9 +164,9 @@ export default function PendienteFormModal({ visible, editando, fechaInicial, on
                 value={fecha}
                 mode="time"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                onChange={(_, nuevaHora) => {
+                onChange={(evento, nuevaHora) => {
                   setMostrarPicker(null);
-                  if (nuevaHora) {
+                  if (evento.type === 'set' && nuevaHora) {
                     const combinada = new Date(fecha);
                     combinada.setHours(nuevaHora.getHours(), nuevaHora.getMinutes());
                     setFecha(combinada);

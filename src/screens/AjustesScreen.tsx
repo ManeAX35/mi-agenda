@@ -1,6 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, ScrollView, Alert, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import * as IntentLauncher from 'expo-intent-launcher';
+import { applicationId } from 'expo-application';
 import { useTheme, ModoColor } from '../context/ThemeContext';
 import { Paleta, TEMAS, TemaId } from '../utils/theme';
 import { obtenerConfig, guardarConfig } from '../db/configRepo';
@@ -65,6 +67,29 @@ export default function AjustesScreen() {
     }
     await activarResumenMatutino(resumenActivado, resumenHora);
     Alert.alert('Listo', 'Se reprogramó el resumen matutino con la nueva hora.');
+  }
+
+  async function abrirAjustesAlarmasExactas() {
+    if (Platform.OS !== 'android') {
+      Alert.alert('Solo Android', 'Este ajuste solo aplica en Android.');
+      return;
+    }
+    // Solo existe desde Android 12 (API 31); en versiones anteriores este permiso
+    // especial no existe — las alarmas exactas están permitidas por default.
+    if (typeof Platform.Version === 'number' && Platform.Version < 31) {
+      Alert.alert('No necesitas esto', 'Tu versión de Android no requiere activar este permiso por separado — ya debería funcionar.');
+      return;
+    }
+    try {
+      await IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.REQUEST_SCHEDULE_EXACT_ALARM, {
+        data: `package:${applicationId}`,
+      });
+    } catch (e) {
+      Alert.alert(
+        'No se pudo abrir automáticamente',
+        'Ve manualmente a: Ajustes de tu teléfono → Apps → Mi Agenda → Permisos especiales → Alarmas y recordatorios, y actívalo.'
+      );
+    }
   }
 
   async function exportarRespaldo() {
@@ -200,6 +225,16 @@ export default function AjustesScreen() {
           </Text>
         </>
       )}
+
+      <Text style={styles.seccion}>Permiso de recordatorios exactos</Text>
+      <Text style={styles.ayuda}>
+        Desde Android 12, avisarte a una hora exacta (como tus recordatorios de actividades y pendientes)
+        requiere un permiso especial que Android no pide solo — hay que activarlo a mano. Si tus
+        recordatorios no te están llegando, prueba esto primero.
+      </Text>
+      <TouchableOpacity style={styles.boton} onPress={abrirAjustesAlarmasExactas}>
+        <Text style={styles.botonTexto}>🔔 Activar alarmas y recordatorios exactos</Text>
+      </TouchableOpacity>
 
       <Text style={styles.seccion}>Respaldo de datos</Text>
       <Text style={styles.ayuda}>

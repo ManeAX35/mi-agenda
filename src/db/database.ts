@@ -1,13 +1,24 @@
 import * as SQLite from 'expo-sqlite';
 
-let db: SQLite.SQLiteDatabase | null = null;
+// IMPORTANTE: se cachea la PROMESA completa (apertura + migraciones), no solo el
+// resultado final. Si se cacheara únicamente el objeto `db` after abrir pero antes de
+// terminar las migraciones, dos pantallas pidiendo la base casi al mismo tiempo al
+// arrancar la app podrían "ganarle" a las migraciones: una espera a que todo termine,
+// pero la otra ve que `db` ya existe y sale a consultar contra tablas/columnas que
+// todavía no se habían terminado de crear. Cacheando la promesa, TODAS las llamadas
+// esperan a que la apertura + migraciones terminen antes de recibir la conexión.
+let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-export async function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (db) return db;
-  db = await SQLite.openDatabaseAsync('agenda.db');
-  await db.execAsync('PRAGMA journal_mode = WAL;');
-  await initSchema(db);
-  return db;
+export function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (!dbPromise) {
+    dbPromise = (async () => {
+      const database = await SQLite.openDatabaseAsync('agenda.db');
+      await database.execAsync('PRAGMA journal_mode = WAL;');
+      await initSchema(database);
+      return database;
+    })();
+  }
+  return dbPromise;
 }
 
 async function initSchema(database: SQLite.SQLiteDatabase) {

@@ -89,9 +89,12 @@ export default function DiarioScreen() {
           mode="date"
           display={Platform.OS === 'ios' ? 'inline' : 'default'}
           maximumDate={new Date()}
-          onChange={(_, fechaElegida) => {
+          onChange={(evento, fechaElegida) => {
             setMostrarSelectorFecha(false);
-            if (fechaElegida) {
+            // En Android, cerrar el diálogo sin elegir nada también dispara onChange
+            // (con type "dismissed"); solo se abre el editor si de verdad se confirmó
+            // una fecha con el botón OK (type "set").
+            if (evento.type === 'set' && fechaElegida) {
               setFechaAbierta(fechaLocalDesdeDate(fechaElegida));
             }
           }}

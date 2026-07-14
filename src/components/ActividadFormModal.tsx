@@ -117,50 +117,55 @@ export default function ActividadFormModal({
       return;
     }
 
-    const existentes = await listarActividades();
+    try {
+      const existentes = await listarActividades();
 
-    if (editando) {
-      const conflictos = actividadesEnConflicto(existentes, diaSemana, horaInicio, horaFin, editando.id);
-      if (conflictos.length > 0) {
-        Alert.alert(
-          'Ya tienes algo en ese horario',
-          `Se cruza con "${conflictos[0].titulo}" (${conflictos[0].hora_inicio}-${conflictos[0].hora_fin}) el ${DIAS[diaSemana]}. Cambia el horario o el día para guardar.`
-        );
-        return;
-      }
-      await actualizarActividad({
-        ...editando,
-        titulo,
-        categoria,
-        dia_semana: diaSemana,
-        hora_inicio: horaInicio,
-        hora_fin: horaFin,
-        lugar,
-        color,
-        recordatoriosMinutos,
-      });
-    } else {
-      if (diasSeleccionados.length === 0) {
-        Alert.alert('Elige al menos un día', 'Marca los días de la semana en que ocurre esta actividad.');
-        return;
-      }
-      // Revisa traslapes en TODOS los días seleccionados antes de crear cualquiera
-      for (const dia of diasSeleccionados) {
-        const conflictos = actividadesEnConflicto(existentes, dia, horaInicio, horaFin);
+      if (editando) {
+        const conflictos = actividadesEnConflicto(existentes, diaSemana, horaInicio, horaFin, editando.id);
         if (conflictos.length > 0) {
           Alert.alert(
             'Ya tienes algo en ese horario',
-            `Se cruza con "${conflictos[0].titulo}" (${conflictos[0].hora_inicio}-${conflictos[0].hora_fin}) el ${DIAS[dia]}. Cambia el horario o quita ese día para guardar.`
+            `Se cruza con "${conflictos[0].titulo}" (${conflictos[0].hora_inicio}-${conflictos[0].hora_fin}) el ${DIAS[diaSemana]}. Cambia el horario o el día para guardar.`
           );
           return;
         }
+        await actualizarActividad({
+          ...editando,
+          titulo,
+          categoria,
+          dia_semana: diaSemana,
+          hora_inicio: horaInicio,
+          hora_fin: horaFin,
+          lugar,
+          color,
+          recordatoriosMinutos,
+        });
+      } else {
+        if (diasSeleccionados.length === 0) {
+          Alert.alert('Elige al menos un día', 'Marca los días de la semana en que ocurre esta actividad.');
+          return;
+        }
+        // Revisa traslapes en TODOS los días seleccionados antes de crear cualquiera
+        for (const dia of diasSeleccionados) {
+          const conflictos = actividadesEnConflicto(existentes, dia, horaInicio, horaFin);
+          if (conflictos.length > 0) {
+            Alert.alert(
+              'Ya tienes algo en ese horario',
+              `Se cruza con "${conflictos[0].titulo}" (${conflictos[0].hora_inicio}-${conflictos[0].hora_fin}) el ${DIAS[dia]}. Cambia el horario o quita ese día para guardar.`
+            );
+            return;
+          }
+        }
+        await crearActividadEnVariosDias(
+          { titulo, categoria, hora_inicio: horaInicio, hora_fin: horaFin, lugar, color, recordatoriosMinutos },
+          diasSeleccionados
+        );
       }
-      await crearActividadEnVariosDias(
-        { titulo, categoria, hora_inicio: horaInicio, hora_fin: horaFin, lugar, color, recordatoriosMinutos },
-        diasSeleccionados
-      );
+      onGuardado();
+    } catch (e: any) {
+      console.error('Error al guardar actividad:', e);
+      Alert.alert('Error al guardar', e?.message || 'Algo falló al guardar la actividad. Revisa la consola de Metro para más detalle.');
     }
-    onGuardado();
   }
 
   return (

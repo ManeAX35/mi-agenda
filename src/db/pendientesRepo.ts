@@ -26,7 +26,13 @@ type DatosPendiente = Omit<
 
 export async function crearPendiente(p: DatosPendiente): Promise<number> {
   const db = await getDb();
-  const recordatorios = await programarRecordatoriosPendiente(p.titulo, p.fecha_limite, p.recordatoriosMinutos);
+
+  let recordatorios: { minutos: number; id: string }[] = [];
+  try {
+    recordatorios = await programarRecordatoriosPendiente(p.titulo, p.fecha_limite, p.recordatoriosMinutos);
+  } catch (e) {
+    console.error('No se pudieron programar los recordatorios del pendiente (se guardó sin avisos):', e);
+  }
 
   const result = await db.runAsync(
     `INSERT INTO pendientes (titulo, descripcion, fecha_limite, recordatorio_minutos_antes, notification_id, notification_id_2, recordatorios_activados, recordatorios_json, completado, tipo, repetir)
@@ -38,14 +44,21 @@ export async function crearPendiente(p: DatosPendiente): Promise<number> {
 
 export async function actualizarPendiente(p: Pendiente & { recordatoriosMinutos: number[] }): Promise<void> {
   const db = await getDb();
-  await cancelarRecordatoriosProgramados(parsearRecordatorios(p.recordatorios_json));
-  const recordatorios = await programarRecordatoriosPendiente(p.titulo, p.fecha_limite, p.recordatoriosMinutos);
+
+  let recordatoriosJson: string | null = p.recordatorios_json ?? null;
+  try {
+    await cancelarRecordatoriosProgramados(parsearRecordatorios(p.recordatorios_json));
+    const recordatorios = await programarRecordatoriosPendiente(p.titulo, p.fecha_limite, p.recordatoriosMinutos);
+    recordatoriosJson = serializarRecordatorios(recordatorios);
+  } catch (e) {
+    console.error('No se pudieron reprogramar los recordatorios del pendiente (se guardó igual):', e);
+  }
 
   await db.runAsync(
     `UPDATE pendientes
      SET titulo = ?, descripcion = ?, fecha_limite = ?, recordatorios_activados = ?, recordatorios_json = ?, tipo = ?, repetir = ?
      WHERE id = ?;`,
-    [p.titulo, p.descripcion ?? null, p.fecha_limite, p.recordatoriosMinutos.length > 0 ? 1 : 0, serializarRecordatorios(recordatorios), p.tipo, p.repetir ?? null, p.id]
+    [p.titulo, p.descripcion ?? null, p.fecha_limite, p.recordatoriosMinutos.length > 0 ? 1 : 0, recordatoriosJson, p.tipo, p.repetir ?? null, p.id]
   );
 }
 

@@ -48,11 +48,18 @@ export async function crearActividad(a: DatosActividad): Promise<number> {
   );
   const id = result.lastInsertRowId;
 
-  const recordatorios = await programarRecordatoriosActividad(a.titulo, a.dia_semana, a.hora_inicio, a.recordatoriosMinutos);
-  await db.runAsync('UPDATE actividades_recurrentes SET recordatorios_json = ? WHERE id = ?;', [
-    serializarRecordatorios(recordatorios),
-    id,
-  ]);
+  // Si programar los recordatorios falla (ej. falta el permiso de "Alarmas y
+  // recordatorios" en Android), la actividad IGUAL se guarda — simplemente sin avisos.
+  // Nunca debe perderse el registro por un problema de notificaciones.
+  try {
+    const recordatorios = await programarRecordatoriosActividad(a.titulo, a.dia_semana, a.hora_inicio, a.recordatoriosMinutos);
+    await db.runAsync('UPDATE actividades_recurrentes SET recordatorios_json = ? WHERE id = ?;', [
+      serializarRecordatorios(recordatorios),
+      id,
+    ]);
+  } catch (e) {
+    console.error('No se pudieron programar los recordatorios de la actividad (se guardó sin avisos):', e);
+  }
 
   return id;
 }
@@ -77,15 +84,21 @@ export async function crearActividadEnVariosDias(
 export async function actualizarActividad(a: ActividadRecurrente & { recordatoriosMinutos: number[] }): Promise<void> {
   const db = await getDb();
 
-  // Cancela los recordatorios viejos (con el horario/día anterior) y programa los nuevos
-  await cancelarRecordatoriosProgramados(parsearRecordatorios(a.recordatorios_json));
-  const recordatorios = await programarRecordatoriosActividad(a.titulo, a.dia_semana, a.hora_inicio, a.recordatoriosMinutos);
+  let recordatoriosJson: string | null = a.recordatorios_json ?? null;
+  try {
+    // Cancela los recordatorios viejos (con el horario/día anterior) y programa los nuevos
+    await cancelarRecordatoriosProgramados(parsearRecordatorios(a.recordatorios_json));
+    const recordatorios = await programarRecordatoriosActividad(a.titulo, a.dia_semana, a.hora_inicio, a.recordatoriosMinutos);
+    recordatoriosJson = serializarRecordatorios(recordatorios);
+  } catch (e) {
+    console.error('No se pudieron reprogramar los recordatorios de la actividad (se guardó igual):', e);
+  }
 
   await db.runAsync(
     `UPDATE actividades_recurrentes
      SET titulo = ?, categoria = ?, dia_semana = ?, hora_inicio = ?, hora_fin = ?, lugar = ?, color = ?, recordatorios_json = ?
      WHERE id = ?;`,
-    [a.titulo, a.categoria, a.dia_semana, a.hora_inicio, a.hora_fin, a.lugar ?? null, a.color ?? null, serializarRecordatorios(recordatorios), a.id]
+    [a.titulo, a.categoria, a.dia_semana, a.hora_inicio, a.hora_fin, a.lugar ?? null, a.color ?? null, recordatoriosJson, a.id]
   );
 }
 

@@ -23,7 +23,12 @@ export default function PendientesScreen() {
   );
 
   async function cargar() {
-    setPendientes(await listarPendientes(mostrarCompletados));
+    try {
+      setPendientes(await listarPendientes(mostrarCompletados));
+    } catch (e: any) {
+      console.error('Error al cargar pendientes:', e);
+      Alert.alert('Error al cargar', e?.message || 'No se pudieron cargar tus pendientes.');
+    }
   }
 
   function abrirNuevo() {

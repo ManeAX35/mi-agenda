@@ -24,7 +24,12 @@ export default function ActividadesScreen() {
   );
 
   async function cargar() {
-    setActividades(await listarActividades());
+    try {
+      setActividades(await listarActividades());
+    } catch (e: any) {
+      console.error('Error al cargar actividades:', e);
+      Alert.alert('Error al cargar', e?.message || 'No se pudieron cargar tus actividades. Revisa la consola de Metro para más detalle.');
+    }
   }
 
   function abrirNuevo() {
