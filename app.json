@@ -32,6 +32,35 @@
           "icon": "./assets/icon.png",
           "color": "#4F46E5"
         }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "AgendaWidget",
+              "label": "Agenda de hoy",
+              "description": "Muestra tus actividades y pendientes de hoy",
+              "minWidth": "250dp",
+              "minHeight": "180dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 3,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "TareasWidget",
+              "label": "Tareas de hoy",
+              "description": "Marca tus tareas del día directo desde el widget",
+              "minWidth": "250dp",
+              "minHeight": "180dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 3,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
       ]
     ]
   }

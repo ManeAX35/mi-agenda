@@ -1,12 +1,15 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import { listarActividades } from '../db/actividadesRepo';
 import { listarPendientes } from '../db/pendientesRepo';
-import { ActividadRecurrente, Pendiente } from '../types';
+import { ActividadRecurrente, Pendiente, DiaSemana } from '../types';
 import { colors } from '../utils/theme';
 import HorarioSemanal from '../components/HorarioSemanal';
+import ActividadFormModal from '../components/ActividadFormModal';
+import PendienteFormModal from '../components/PendienteFormModal';
+import DiaTimeline, { EventoDia } from '../components/DiaTimeline';
 
 export default function AgendaScreen() {
   const [modo, setModo] = useState<'semana' | 'mes'>('semana');
@@ -15,6 +18,16 @@ export default function AgendaScreen() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
+
+  // Un solo modal de actividad, que sirve tanto para crear (tocando un slot vacío)
+  // como para editar (tocando un bloque existente)
+  const [modalActividadVisible, setModalActividadVisible] = useState(false);
+  const [actividadEditando, setActividadEditando] = useState<ActividadRecurrente | null>(null);
+  const [slotTocado, setSlotTocado] = useState<{ dia: DiaSemana; hora: number } | null>(null);
+
+  // Modal de pendiente, para editar tocando un bloque en la línea de tiempo del día
+  const [modalPendienteVisible, setModalPendienteVisible] = useState(false);
+  const [pendienteEditando, setPendienteEditando] = useState<Pendiente | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -60,8 +73,63 @@ export default function AgendaScreen() {
   const diaSemanaSeleccionado = new Date(fechaSeleccionada + 'T00:00:00').getDay();
   const recurrentesDelDia = porDia[diaSemanaSeleccionado] || [];
 
-  function mostrarDetalle(a: ActividadRecurrente) {
-    Alert.alert(a.titulo, `${a.hora_inicio} - ${a.hora_fin}${a.lugar ? '\n' + a.lugar : ''}\n${a.categoria}`);
+  const eventosDelDia: EventoDia[] = [
+    ...recurrentesDelDia.map((a) => ({
+      id: `r-${a.id}`,
+      titulo: a.titulo,
+      subtitulo: `${a.hora_inicio}-${a.hora_fin}${a.lugar ? ' · ' + a.lugar : ''}`,
+      horaInicio: a.hora_inicio,
+      horaFin: a.hora_fin,
+      color: a.color || colors.primario,
+    })),
+    ...pendientesDelDia.map((p) => ({
+      id: `p-${p.id}`,
+      titulo: p.titulo,
+      subtitulo: `${p.tipo} · pendiente`,
+      horaInicio: p.fecha_limite.slice(11, 16),
+      horaFin: sumarMediaHora(p.fecha_limite.slice(11, 16)),
+      color: colors.acento,
+    })),
+  ];
+
+  /** Al tocar una actividad ya existente (en el horario semanal o en la línea del día), la abre para editar. */
+  function editarActividad(a: ActividadRecurrente) {
+    setActividadEditando(a);
+    setSlotTocado(null);
+    setModalActividadVisible(true);
+  }
+
+  /** Al tocar una hora vacía del horario semanal, abre el formulario de nueva actividad prellenado. */
+  function abrirNuevaDesdeSlot(dia: DiaSemana, hora: number) {
+    setActividadEditando(null);
+    setSlotTocado({ dia, hora });
+    setModalActividadVisible(true);
+  }
+
+  function horaFormateada(hora: number): string {
+    return `${String(hora).padStart(2, '0')}:00`;
+  }
+
+  function sumarMediaHora(hhmm: string): string {
+    const [h, m] = hhmm.split(':').map(Number);
+    const totalMin = h * 60 + m + 30;
+    const hh = Math.floor(totalMin / 60) % 24;
+    const mm = totalMin % 60;
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  }
+
+  /** Al tocar un bloque en la línea de tiempo del día (mes), abre el editor correspondiente. */
+  function editarEventoDelDia(id: string) {
+    if (id.startsWith('r-')) {
+      const real = recurrentesDelDia.find((a) => `r-${a.id}` === id);
+      if (real) editarActividad(real);
+    } else {
+      const real = pendientesDelDia.find((p) => `p-${p.id}` === id);
+      if (real) {
+        setPendienteEditando(real);
+        setModalPendienteVisible(true);
+      }
+    }
   }
 
   return (
@@ -84,7 +152,11 @@ export default function AgendaScreen() {
       {modo === 'semana' ? (
         <ScrollView contentContainerStyle={{ paddingBottom: 24, paddingTop: 8 }}>
           <Text style={styles.ayuda}>Desliza a los lados para ver todos los días →</Text>
-          <HorarioSemanal actividadesPorDia={porDia} onPressActividad={mostrarDetalle} />
+          <HorarioSemanal
+            actividadesPorDia={porDia}
+            onPressActividad={editarActividad}
+            onPressSlot={abrirNuevaDesdeSlot}
+          />
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
@@ -110,38 +182,35 @@ export default function AgendaScreen() {
           </View>
 
           <View style={styles.diaBloque}>
-            <Text style={styles.diaTitulo}>Actividades recurrentes ({fechaSeleccionada})</Text>
-            {recurrentesDelDia.length === 0 ? (
-              <Text style={styles.sinActividades}>Sin actividades recurrentes este día</Text>
-            ) : (
-              recurrentesDelDia.map((a) => (
-                <TouchableOpacity
-                  key={a.id}
-                  style={[styles.actividadItem, { borderLeftColor: a.color || colors.primario }]}
-                  onPress={() => mostrarDetalle(a)}
-                >
-                  <Text style={styles.actividadTitulo}>{a.titulo}</Text>
-                  <Text style={styles.actividadHora}>
-                    {a.hora_inicio} - {a.hora_fin} {a.lugar ? `· ${a.lugar}` : ''}
-                  </Text>
-                </TouchableOpacity>
-              ))
-            )}
-
-            <Text style={[styles.diaTitulo, { marginTop: 16 }]}>Pendientes</Text>
-            {pendientesDelDia.length === 0 ? (
-              <Text style={styles.sinActividades}>Sin pendientes este día</Text>
-            ) : (
-              pendientesDelDia.map((p) => (
-                <View key={p.id} style={[styles.actividadItem, { borderLeftColor: colors.acento }]}>
-                  <Text style={styles.actividadTitulo}>{p.titulo}</Text>
-                  <Text style={styles.actividadHora}>{p.fecha_limite.slice(11, 16)} · {p.tipo}</Text>
-                </View>
-              ))
-            )}
+            <Text style={styles.diaTitulo}>Tu día · {fechaSeleccionada}</Text>
+            <Text style={styles.ayuda}>Actividades recurrentes y pendientes juntos. Si se cruzan en horario, se ven lado a lado.</Text>
+            <DiaTimeline eventos={eventosDelDia} onPressEvento={editarEventoDelDia} />
           </View>
         </ScrollView>
       )}
+
+      <ActividadFormModal
+        visible={modalActividadVisible}
+        editando={actividadEditando}
+        diaInicial={slotTocado?.dia}
+        horaInicioInicial={slotTocado ? horaFormateada(slotTocado.hora) : undefined}
+        horaFinInicial={slotTocado ? horaFormateada(slotTocado.hora + 1) : undefined}
+        onClose={() => setModalActividadVisible(false)}
+        onGuardado={() => {
+          setModalActividadVisible(false);
+          cargar();
+        }}
+      />
+
+      <PendienteFormModal
+        visible={modalPendienteVisible}
+        editando={pendienteEditando}
+        onClose={() => setModalPendienteVisible(false)}
+        onGuardado={() => {
+          setModalPendienteVisible(false);
+          cargar();
+        }}
+      />
     </View>
   );
 }

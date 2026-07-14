@@ -49,4 +49,24 @@ async function initSchema(database: SQLite.SQLiteDatabase) {
       actualizado_en TEXT NOT NULL
     );
   `);
+
+  // Migraciones aditivas: agregan columnas nuevas para el recordatorio doble
+  // (1 hora y 30 min antes) sin tocar los datos que ya existan.
+  // SQLite no soporta "ADD COLUMN IF NOT EXISTS", así que se intenta y se
+  // ignora el error si la columna ya fue agregada en una corrida anterior.
+  const migraciones = [
+    'ALTER TABLE actividades_recurrentes ADD COLUMN notification_id_1h TEXT;',
+    'ALTER TABLE actividades_recurrentes ADD COLUMN notification_id_30m TEXT;',
+    'ALTER TABLE actividades_recurrentes ADD COLUMN recordatorios_json TEXT;',
+    'ALTER TABLE pendientes ADD COLUMN notification_id_2 TEXT;',
+    'ALTER TABLE pendientes ADD COLUMN recordatorios_activados INTEGER NOT NULL DEFAULT 1;',
+    'ALTER TABLE pendientes ADD COLUMN recordatorios_json TEXT;',
+  ];
+  for (const sql of migraciones) {
+    try {
+      await database.execAsync(sql);
+    } catch {
+      // La columna ya existe (app corrida antes de esta versión) — se ignora.
+    }
+  }
 }

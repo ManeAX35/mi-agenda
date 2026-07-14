@@ -1,6 +1,11 @@
 import { getDb } from './database';
 import { Pendiente } from '../types';
-import { cancelarRecordatorio, programarRecordatorio } from '../utils/notifications';
+import {
+  cancelarRecordatoriosProgramados,
+  programarRecordatoriosPendiente,
+  parsearRecordatorios,
+  serializarRecordatorios,
+} from '../utils/notifications';
 
 export async function listarPendientes(incluirCompletados = false): Promise<Pendiente[]> {
   const db = await getDb();
@@ -12,36 +17,35 @@ export async function listarPendientes(incluirCompletados = false): Promise<Pend
   );
 }
 
-export async function crearPendiente(
-  p: Omit<Pendiente, 'id' | 'completado' | 'notification_id'>
-): Promise<number> {
+type DatosPendiente = Omit<
+  Pendiente,
+  'id' | 'completado' | 'notification_id' | 'notification_id_2' | 'recordatorio_minutos_antes' | 'recordatorios_json' | 'recordatorios_activados'
+> & {
+  recordatoriosMinutos: number[];
+};
+
+export async function crearPendiente(p: DatosPendiente): Promise<number> {
   const db = await getDb();
-  let notificationId: string | null = null;
-  if (p.recordatorio_minutos_antes != null) {
-    notificationId = await programarRecordatorio(p.titulo, p.fecha_limite, p.recordatorio_minutos_antes);
-  }
+  const recordatorios = await programarRecordatoriosPendiente(p.titulo, p.fecha_limite, p.recordatoriosMinutos);
+
   const result = await db.runAsync(
-    `INSERT INTO pendientes (titulo, descripcion, fecha_limite, recordatorio_minutos_antes, notification_id, completado, tipo)
-     VALUES (?, ?, ?, ?, ?, 0, ?);`,
-    [p.titulo, p.descripcion ?? null, p.fecha_limite, p.recordatorio_minutos_antes, notificationId, p.tipo]
+    `INSERT INTO pendientes (titulo, descripcion, fecha_limite, recordatorio_minutos_antes, notification_id, notification_id_2, recordatorios_activados, recordatorios_json, completado, tipo)
+     VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, 0, ?);`,
+    [p.titulo, p.descripcion ?? null, p.fecha_limite, p.recordatoriosMinutos.length > 0 ? 1 : 0, serializarRecordatorios(recordatorios), p.tipo]
   );
   return result.lastInsertRowId;
 }
 
-export async function actualizarPendiente(p: Pendiente): Promise<void> {
+export async function actualizarPendiente(p: Pendiente & { recordatoriosMinutos: number[] }): Promise<void> {
   const db = await getDb();
-  if (p.notification_id) {
-    await cancelarRecordatorio(p.notification_id);
-  }
-  let notificationId: string | null = null;
-  if (p.recordatorio_minutos_antes != null) {
-    notificationId = await programarRecordatorio(p.titulo, p.fecha_limite, p.recordatorio_minutos_antes);
-  }
+  await cancelarRecordatoriosProgramados(parsearRecordatorios(p.recordatorios_json));
+  const recordatorios = await programarRecordatoriosPendiente(p.titulo, p.fecha_limite, p.recordatoriosMinutos);
+
   await db.runAsync(
     `UPDATE pendientes
-     SET titulo = ?, descripcion = ?, fecha_limite = ?, recordatorio_minutos_antes = ?, notification_id = ?, tipo = ?
+     SET titulo = ?, descripcion = ?, fecha_limite = ?, recordatorios_activados = ?, recordatorios_json = ?, tipo = ?
      WHERE id = ?;`,
-    [p.titulo, p.descripcion ?? null, p.fecha_limite, p.recordatorio_minutos_antes, notificationId, p.tipo, p.id]
+    [p.titulo, p.descripcion ?? null, p.fecha_limite, p.recordatoriosMinutos.length > 0 ? 1 : 0, serializarRecordatorios(recordatorios), p.tipo, p.id]
   );
 }
 
@@ -50,10 +54,8 @@ export async function marcarCompletado(id: number, completado: boolean): Promise
   await db.runAsync('UPDATE pendientes SET completado = ? WHERE id = ?;', [completado ? 1 : 0, id]);
 }
 
-export async function eliminarPendiente(id: number, notificationId?: string | null): Promise<void> {
+export async function eliminarPendiente(id: number, recordatoriosJson?: string | null): Promise<void> {
   const db = await getDb();
-  if (notificationId) {
-    await cancelarRecordatorio(notificationId);
-  }
+  await cancelarRecordatoriosProgramados(parsearRecordatorios(recordatoriosJson));
   await db.runAsync('DELETE FROM pendientes WHERE id = ?;', [id]);
 }

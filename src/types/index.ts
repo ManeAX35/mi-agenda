@@ -11,6 +11,7 @@ export interface ActividadRecurrente {
   lugar?: string | null;
   color?: string | null;
   activo: number; // 1 o 0 (SQLite no tiene boolean nativo)
+  recordatorios_json?: string | null; // JSON: RecordatorioProgramado[]
 }
 
 export interface Pendiente {
@@ -18,8 +19,11 @@ export interface Pendiente {
   titulo: string;
   descripcion?: string | null;
   fecha_limite: string; // ISO string "YYYY-MM-DDTHH:MM:SS"
-  recordatorio_minutos_antes: number | null; // null = sin recordatorio
-  notification_id?: string | null;
+  recordatorio_minutos_antes: number | null; // ya no se usa, se mantiene por compatibilidad con datos viejos
+  notification_id?: string | null; // ya no se usa, se mantiene por compatibilidad con datos viejos
+  notification_id_2?: string | null; // ya no se usa, se mantiene por compatibilidad con datos viejos
+  recordatorios_activados: number; // 1 o 0
+  recordatorios_json?: string | null; // JSON: RecordatorioProgramado[]
   completado: number; // 1 o 0
   tipo: 'pago' | 'junta' | 'entrega' | 'otro';
 }

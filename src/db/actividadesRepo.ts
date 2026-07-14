@@ -1,5 +1,32 @@
 import { getDb } from './database';
-import { ActividadRecurrente } from '../types';
+import { ActividadRecurrente, DiaSemana } from '../types';
+import { seTraslapan } from '../utils/tiempo';
+import {
+  programarRecordatoriosActividad,
+  cancelarRecordatoriosProgramados,
+  parsearRecordatorios,
+  serializarRecordatorios,
+} from '../utils/notifications';
+
+/**
+ * Regresa las actividades del mismo día que se traslapan en horario con el rango dado.
+ * Se usa para bloquear la creación/edición de una actividad recurrente que chocaría
+ * con otra ya existente (p. ej. dos clases al mismo tiempo el mismo día).
+ */
+export function actividadesEnConflicto(
+  actividades: ActividadRecurrente[],
+  diaSemana: DiaSemana,
+  horaInicio: string,
+  horaFin: string,
+  excludeId?: number
+): ActividadRecurrente[] {
+  return actividades.filter(
+    (a) =>
+      a.dia_semana === diaSemana &&
+      a.id !== excludeId &&
+      seTraslapan(horaInicio, horaFin, a.hora_inicio, a.hora_fin)
+  );
+}
 
 export async function listarActividades(): Promise<ActividadRecurrente[]> {
   const db = await getDb();
@@ -8,14 +35,26 @@ export async function listarActividades(): Promise<ActividadRecurrente[]> {
   );
 }
 
-export async function crearActividad(a: Omit<ActividadRecurrente, 'id' | 'activo'>): Promise<number> {
+type DatosActividad = Omit<ActividadRecurrente, 'id' | 'activo' | 'recordatorios_json'> & {
+  recordatoriosMinutos: number[];
+};
+
+export async function crearActividad(a: DatosActividad): Promise<number> {
   const db = await getDb();
   const result = await db.runAsync(
     `INSERT INTO actividades_recurrentes (titulo, categoria, dia_semana, hora_inicio, hora_fin, lugar, color, activo)
      VALUES (?, ?, ?, ?, ?, ?, ?, 1);`,
     [a.titulo, a.categoria, a.dia_semana, a.hora_inicio, a.hora_fin, a.lugar ?? null, a.color ?? null]
   );
-  return result.lastInsertRowId;
+  const id = result.lastInsertRowId;
+
+  const recordatorios = await programarRecordatoriosActividad(a.titulo, a.dia_semana, a.hora_inicio, a.recordatoriosMinutos);
+  await db.runAsync('UPDATE actividades_recurrentes SET recordatorios_json = ? WHERE id = ?;', [
+    serializarRecordatorios(recordatorios),
+    id,
+  ]);
+
+  return id;
 }
 
 /**
@@ -24,7 +63,7 @@ export async function crearActividad(a: Omit<ActividadRecurrente, 'id' | 'activo
  * Retorna los ids de las filas creadas, una por cada día seleccionado.
  */
 export async function crearActividadEnVariosDias(
-  base: Omit<ActividadRecurrente, 'id' | 'activo' | 'dia_semana'>,
+  base: Omit<DatosActividad, 'dia_semana'>,
   dias: ActividadRecurrente['dia_semana'][]
 ): Promise<number[]> {
   const ids: number[] = [];
@@ -35,18 +74,27 @@ export async function crearActividadEnVariosDias(
   return ids;
 }
 
-export async function actualizarActividad(a: ActividadRecurrente): Promise<void> {
+export async function actualizarActividad(a: ActividadRecurrente & { recordatoriosMinutos: number[] }): Promise<void> {
   const db = await getDb();
+
+  // Cancela los recordatorios viejos (con el horario/día anterior) y programa los nuevos
+  await cancelarRecordatoriosProgramados(parsearRecordatorios(a.recordatorios_json));
+  const recordatorios = await programarRecordatoriosActividad(a.titulo, a.dia_semana, a.hora_inicio, a.recordatoriosMinutos);
+
   await db.runAsync(
     `UPDATE actividades_recurrentes
-     SET titulo = ?, categoria = ?, dia_semana = ?, hora_inicio = ?, hora_fin = ?, lugar = ?, color = ?
+     SET titulo = ?, categoria = ?, dia_semana = ?, hora_inicio = ?, hora_fin = ?, lugar = ?, color = ?, recordatorios_json = ?
      WHERE id = ?;`,
-    [a.titulo, a.categoria, a.dia_semana, a.hora_inicio, a.hora_fin, a.lugar ?? null, a.color ?? null, a.id]
+    [a.titulo, a.categoria, a.dia_semana, a.hora_inicio, a.hora_fin, a.lugar ?? null, a.color ?? null, serializarRecordatorios(recordatorios), a.id]
   );
 }
 
 export async function eliminarActividad(id: number): Promise<void> {
   const db = await getDb();
+  const fila = await db.getFirstAsync<ActividadRecurrente>('SELECT * FROM actividades_recurrentes WHERE id = ?;', [id]);
+  if (fila) {
+    await cancelarRecordatoriosProgramados(parsearRecordatorios(fila.recordatorios_json));
+  }
   // Borrado lógico: se marca inactivo en lugar de eliminar la fila
   await db.runAsync('UPDATE actividades_recurrentes SET activo = 0 WHERE id = ?;', [id]);
 }

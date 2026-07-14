@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { ActividadRecurrente } from '../types';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { ActividadRecurrente, DiaSemana } from '../types';
 import { colors } from '../utils/theme';
 
 const HORA_INICIO = 6; // 6:00 am
@@ -19,12 +19,23 @@ function minutosDesdeMedianoche(hhmm: string): number {
 interface Props {
   actividadesPorDia: Record<number, ActividadRecurrente[]>;
   onPressActividad: (a: ActividadRecurrente) => void;
+  onPressSlot?: (diaSemana: DiaSemana, hora: number) => void;
 }
 
-export default function HorarioSemanal({ actividadesPorDia, onPressActividad }: Props) {
+export default function HorarioSemanal({ actividadesPorDia, onPressActividad, onPressSlot }: Props) {
   const totalHoras = HORA_FIN - HORA_INICIO;
   const alturaTotal = totalHoras * ALTURA_POR_HORA;
   const horas = Array.from({ length: totalHoras + 1 }, (_, i) => HORA_INICIO + i);
+
+  // El encabezado (nombres de los días) y el cuerpo (horas + actividades) usan
+  // scrolls horizontales separados; se sincronizan a mano para que se muevan juntos.
+  const headerScrollRef = useRef<ScrollView>(null);
+  const bodyScrollRef = useRef<ScrollView>(null);
+
+  function sincronizarDesdeCuerpo(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const x = e.nativeEvent.contentOffset.x;
+    headerScrollRef.current?.scrollTo({ x, animated: false });
+  }
 
   function bloqueEstilo(a: ActividadRecurrente) {
     const inicioMin = minutosDesdeMedianoche(a.hora_inicio) - HORA_INICIO * 60;
@@ -36,10 +47,16 @@ export default function HorarioSemanal({ actividadesPorDia, onPressActividad }: 
 
   return (
     <View style={styles.contenedor}>
-      {/* Encabezado con nombres de los días, alineado con las columnas de abajo */}
+      {/* Encabezado con nombres de los días. Su scroll NO es tocable por el usuario;
+          se mueve solo, siguiendo al scroll del cuerpo de abajo (sincronizado). */}
       <View style={styles.filaEncabezado}>
         <View style={{ width: ANCHO_COLUMNA_HORA }} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView
+          ref={headerScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          scrollEnabled={false}
+        >
           <View style={{ flexDirection: 'row' }}>
             {DIAS_CORTOS.map((d) => (
               <View key={d} style={[styles.celdaEncabezado, { width: ANCHO_COLUMNA_DIA }]}>
@@ -61,13 +78,26 @@ export default function HorarioSemanal({ actividadesPorDia, onPressActividad }: 
             ))}
           </View>
 
-          {/* Columnas de días, con scroll horizontal */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {/* Columnas de días, con scroll horizontal controlado por el usuario */}
+          <ScrollView
+            ref={bodyScrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            onScroll={sincronizarDesdeCuerpo}
+            scrollEventThrottle={16}
+          >
             <View style={{ flexDirection: 'row' }}>
               {DIAS_CORTOS.map((_, diaIdx) => (
                 <View key={diaIdx} style={[styles.columnaDia, { width: ANCHO_COLUMNA_DIA, height: alturaTotal }]}>
                   {horas.slice(0, -1).map((h) => (
-                    <View key={h} style={[styles.lineaHora, { top: (h - HORA_INICIO) * ALTURA_POR_HORA }]} />
+                    <TouchableOpacity
+                      key={h}
+                      style={[styles.celdaTocable, { top: (h - HORA_INICIO) * ALTURA_POR_HORA, height: ALTURA_POR_HORA }]}
+                      activeOpacity={onPressSlot ? 0.5 : 1}
+                      onPress={() => onPressSlot && onPressSlot(diaIdx as DiaSemana, h)}
+                    >
+                      <View style={styles.lineaHora} />
+                    </TouchableOpacity>
                   ))}
                   {(actividadesPorDia[diaIdx] || []).map((a) => {
                     const est = bloqueEstilo(a);
@@ -105,7 +135,8 @@ const styles = StyleSheet.create({
   celdaHora: { justifyContent: 'flex-start', alignItems: 'flex-end', paddingRight: 4 },
   textoHora: { fontSize: 10, color: colors.textoSecundario, transform: [{ translateY: -6 }] },
   columnaDia: { borderLeftWidth: 1, borderLeftColor: '#F0F0F0' },
-  lineaHora: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: '#F0F0F0' },
+  celdaTocable: { position: 'absolute', left: 0, right: 0, justifyContent: 'flex-start' },
+  lineaHora: { height: 1, backgroundColor: '#F0F0F0' },
   bloqueActividad: { position: 'absolute', left: 2, right: 2, borderRadius: 6, padding: 4, overflow: 'hidden' },
   bloqueTitulo: { color: '#fff', fontWeight: '700', fontSize: 11 },
   bloqueHora: { color: '#fff', fontSize: 9, marginTop: 2 },

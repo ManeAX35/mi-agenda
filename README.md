@@ -73,13 +73,22 @@ App.tsx          -> Navegación por pestañas
 
 ## Pendiente para Fase 2: Widget de pantalla de inicio
 
-Un widget nativo de Android (visible en el home screen, sin abrir la app) **no es posible con Expo Go** y necesita:
+**¡Ya implementado!** Ver sección "Widgets" abajo.
 
-1. Ya tener corrido `npx expo prebuild` (paso de arriba).
-2. Agregar la librería `react-native-android-widget` y crear el widget en Kotlin/Compose dentro de `android/app/src/main/`.
-3. Volver a compilar con `./gradlew assembleRelease`.
+## Widgets de pantalla de inicio
 
-Es un trabajo aparte porque toca código nativo Android directamente. Si quieres, en otra sesión lo armamos sobre este mismo proyecto ya funcionando — la base de datos y la lógica ya están listas para que el widget solo lea de ahí.
+Hay 2 widgets listos:
+
+- **Agenda de hoy**: solo lectura, muestra tus actividades recurrentes y pendientes de hoy ordenados por hora. Tocarlo abre la app.
+- **Tareas de hoy**: checkboxes tocables para marcar tareas como hechas directo desde el widget, sin abrir la app. El botón "+" abre la app para agregar una tarea nueva (los widgets de Android no permiten escribir texto, por eso ese paso sí necesita la app).
+
+Para probarlos, después de `npx expo prebuild --platform android` y compilar el APK (con Gradle o con EAS), instala la app, mantén presionado en tu pantalla de inicio → Widgets → busca "Mi Agenda" → arrastra "Agenda de hoy" o "Tareas de hoy".
+
+Si haces cambios a los widgets (`src/widgets/*.tsx` o `widget-task-handler.tsx`), vuelve a compilar el APK para verlos reflejados — no se actualizan solo con `expo start`.
+
+## Recordatorios configurables
+
+Al crear o editar una actividad recurrente o un pendiente, puedes elegir uno o varios recordatorios: 15 min, 30 min, 1 hora, 2 horas, 1 día o 2 días antes. Por default vienen marcados "1 hora" y "30 min", pero puedes agregar o quitar los que quieras.
 
 ## Próximas ideas (no incluidas todavía)
 
